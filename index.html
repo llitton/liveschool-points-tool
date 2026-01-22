@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveSchool Points Tool</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Prism.js for syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <!-- SheetJS for XLSX parsing -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- PapaParse for CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- Fuse.js for fuzzy matching -->
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>
+    <!-- Prism.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+</head>
+<body>
+    <!-- Sticky Summary Bar -->
+    <div class="sticky-summary" id="sticky-summary">
+        <div class="summary-content">
+            <div class="summary-item" id="summary-school-file">
+                <span class="summary-icon">○</span>
+                <span class="summary-label">School File</span>
+            </div>
+            <div class="summary-item" id="summary-liveschool-file">
+                <span class="summary-icon">○</span>
+                <span class="summary-label">LiveSchool CSV</span>
+            </div>
+            <div class="summary-item" id="summary-config">
+                <span class="summary-icon">○</span>
+                <span class="summary-label">Config</span>
+            </div>
+            <div class="summary-item" id="summary-matched">
+                <span class="summary-icon">○</span>
+                <span class="summary-label">Matched</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <header class="header">
+            <h1>LiveSchool Points Tool</h1>
+            <p class="subtitle">Match student names and generate behavior scripts</p>
+        </header>
+
+        <!-- Progress Indicator -->
+        <div class="progress-bar">
+            <div class="progress-step active" data-step="1">
+                <div class="step-number">1</div>
+                <div class="step-label">Upload</div>
+            </div>
+            <div class="progress-line"></div>
+            <div class="progress-step" data-step="2">
+                <div class="step-number">2</div>
+                <div class="step-label">Columns</div>
+            </div>
+            <div class="progress-line"></div>
+            <div class="progress-step" data-step="3">
+                <div class="step-number">3</div>
+                <div class="step-label">Config</div>
+            </div>
+            <div class="progress-line"></div>
+            <div class="progress-step" data-step="4">
+                <div class="step-number">4</div>
+                <div class="step-label">Behaviors</div>
+            </div>
+            <div class="progress-line"></div>
+            <div class="progress-step" data-step="5">
+                <div class="step-number">5</div>
+                <div class="step-label">Match</div>
+            </div>
+            <div class="progress-line"></div>
+            <div class="progress-step" data-step="6">
+                <div class="step-number">6</div>
+                <div class="step-label">Generate</div>
+            </div>
+        </div>
+
+        <!-- Step 1: File Upload -->
+        <section class="step active" id="step-upload" data-step="1">
+            <div class="step-header">
+                <h2><span class="step-badge">1</span> Upload Files</h2>
+            </div>
+            <div class="step-content">
+                <div class="upload-grid">
+                    <div class="upload-box" id="school-dropzone">
+                        <div class="dropzone-content">
+                            <div class="upload-icon">📄</div>
+                            <label for="school-file">School's XLSX File</label>
+                            <input type="file" id="school-file" accept=".xlsx,.xls">
+                            <p class="upload-hint">Drag & drop or click to select</p>
+                            <p class="upload-desc">The file with student names from the school</p>
+                        </div>
+                        <div id="school-file-status" class="file-status"></div>
+                    </div>
+                    <div class="upload-box" id="liveschool-dropzone">
+                        <div class="dropzone-content">
+                            <div class="upload-icon">📊</div>
+                            <label for="liveschool-file">LiveSchool CSV Export</label>
+                            <input type="file" id="liveschool-file" accept=".csv">
+                            <p class="upload-hint">Drag & drop or click to select</p>
+                            <p class="upload-desc">Export from LiveSchool with student IDs</p>
+                        </div>
+                        <div id="liveschool-file-status" class="file-status"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 2: Column Mapping -->
+        <section class="step locked" id="step-columns" data-step="2">
+            <div class="step-header">
+                <h2><span class="step-badge">2</span> Select Name Column</h2>
+                <span class="lock-icon">🔒</span>
+            </div>
+            <div class="step-content">
+                <p>Which column contains the student names in the school's file?</p>
+                <div id="column-selector"></div>
+                <button id="confirm-column" class="btn primary">Confirm Column Selection</button>
+            </div>
+        </section>
+
+        <!-- Step 3: School Configuration -->
+        <section class="step locked" id="step-config" data-step="3">
+            <div class="step-header">
+                <h2><span class="step-badge">3</span> School Configuration</h2>
+                <span class="lock-icon">🔒</span>
+            </div>
+            <div class="step-content">
+                <p class="step-description">Enter the IDs for this school (found in LiveSchool URLs or network requests)</p>
+                <div class="config-grid">
+                    <div class="config-field">
+                        <label for="roster-id">Roster ID</label>
+                        <input type="text" id="roster-id" placeholder="e.g., 12345">
+                    </div>
+                    <div class="config-field">
+                        <label for="location-id">Location ID</label>
+                        <input type="text" id="location-id" placeholder="e.g., 678">
+                    </div>
+                    <div class="config-field">
+                        <label for="school-id">School ID</label>
+                        <input type="text" id="school-id" placeholder="e.g., 99">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 4: Tab/Behavior Mapping -->
+        <section class="step locked" id="step-behaviors" data-step="4">
+            <div class="step-header">
+                <h2><span class="step-badge">4</span> Assign Behaviors to Tabs</h2>
+                <span class="lock-icon">🔒</span>
+            </div>
+            <div class="step-content">
+                <p>Enter the behavior ID and type for each tab in the school's file.</p>
+                <div class="bulk-actions">
+                    <button id="apply-to-all" class="btn secondary">Apply to All Tabs</button>
+                    <div class="bulk-inputs">
+                        <input type="text" id="bulk-behavior-id" placeholder="Behavior ID">
+                        <select id="bulk-behavior-type">
+                            <option value="merit">Merit</option>
+                            <option value="demerit">Demerit</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="tab-behavior-list"></div>
+            </div>
+        </section>
+
+        <!-- Step 5: Match & Review -->
+        <section class="step locked" id="step-match" data-step="5">
+            <div class="step-header">
+                <h2><span class="step-badge">5</span> Review Matches</h2>
+                <span class="lock-icon">🔒</span>
+            </div>
+            <div class="step-content">
+                <button id="run-matching" class="btn primary">
+                    <span class="btn-text">Run Matching</span>
+                    <span class="btn-spinner hidden"></span>
+                </button>
+                <div id="match-summary" class="hidden">
+                    <div class="match-stats">
+                        <div class="stat-card matched">
+                            <div class="stat-icon">✓</div>
+                            <div class="stat-number" id="matched-count">0</div>
+                            <div class="stat-label">Matched</div>
+                        </div>
+                        <div class="stat-card unmatched">
+                            <div class="stat-icon">⚠</div>
+                            <div class="stat-number" id="unmatched-count">0</div>
+                            <div class="stat-label">Unmatched</div>
+                        </div>
+                        <div class="stat-card percentage">
+                            <div class="stat-icon" id="match-indicator">●</div>
+                            <div class="stat-number" id="match-percentage">0%</div>
+                            <div class="stat-label">Match Rate</div>
+                        </div>
+                    </div>
+                </div>
+                <div id="unmatched-list" class="hidden">
+                    <h3>Unmatched Students</h3>
+                    <p class="hint">Select the correct match from the dropdown, or leave as "No match" to skip.</p>
+                    <div id="unmatched-items"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 6: Generate Output -->
+        <section class="step locked" id="step-output" data-step="6">
+            <div class="step-header">
+                <h2><span class="step-badge">6</span> Generated Scripts</h2>
+                <span class="lock-icon">🔒</span>
+            </div>
+            <div class="step-content">
+                <button id="generate-scripts" class="btn primary">Generate Scripts</button>
+                <div id="scripts-output">
+                    <div class="empty-state">
+                        <div class="empty-icon">📝</div>
+                        <p>Your scripts will appear here once generated</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="js/parser.js"></script>
+    <script src="js/matcher.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

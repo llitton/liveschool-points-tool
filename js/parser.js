@@ -1,0 +1,190 @@
+/**
+ * Parser module for handling file parsing
+ */
+
+const Parser = {
+    /**
+     * Parse the school's XLSX file
+     * @param {File} file - The XLSX file
+     * @returns {Promise<{sheets: Object, sheetNames: string[]}>}
+     */
+    parseSchoolFile: function(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    const sheets = {};
+                    const sheetNames = workbook.SheetNames;
+
+                    sheetNames.forEach(name => {
+                        const worksheet = workbook.Sheets[name];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        sheets[name] = jsonData;
+                    });
+
+                    resolve({ sheets, sheetNames });
+                } catch (error) {
+                    reject(new Error('Failed to parse XLSX file: ' + error.message));
+                }
+            };
+
+            reader.onerror = function() {
+                reject(new Error('Failed to read file'));
+            };
+
+            reader.readAsArrayBuffer(file);
+        });
+    },
+
+    /**
+     * Parse the LiveSchool CSV export
+     * @param {File} file - The CSV file
+     * @returns {Promise<Array<{id: string, firstName: string, lastName: string}>>}
+     */
+    parseLiveSchoolFile: function(file) {
+        return new Promise((resolve, reject) => {
+            Papa.parse(file, {
+                complete: function(results) {
+                    try {
+                        const rows = results.data;
+                        const students = [];
+
+                        // Find the header row (contains "id", "First Name*", "Last Name*")
+                        let headerRowIndex = -1;
+                        for (let i = 0; i < Math.min(rows.length, 10); i++) {
+                            const row = rows[i];
+                            if (row && row.length >= 3) {
+                                const firstCell = String(row[0] || '').toLowerCase().trim();
+                                if (firstCell === 'id') {
+                                    headerRowIndex = i;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (headerRowIndex === -1) {
+                            reject(new Error('Could not find header row in LiveSchool CSV'));
+                            return;
+                        }
+
+                        // Parse student data starting after header
+                        for (let i = headerRowIndex + 1; i < rows.length; i++) {
+                            const row = rows[i];
+                            if (row && row.length >= 3 && row[0]) {
+                                const id = String(row[0]).trim();
+                                const firstName = String(row[1] || '').trim().toUpperCase();
+                                const lastName = String(row[2] || '').trim().toUpperCase();
+
+                                if (id && (firstName || lastName)) {
+                                    students.push({ id, firstName, lastName });
+                                }
+                            }
+                        }
+
+                        resolve(students);
+                    } catch (error) {
+                        reject(new Error('Failed to parse CSV data: ' + error.message));
+                    }
+                },
+                error: function(error) {
+                    reject(new Error('Failed to parse CSV: ' + error.message));
+                }
+            });
+        });
+    },
+
+    /**
+     * Parse a student name in "LASTNAME, FIRSTNAME MIDDLENAME" format
+     * @param {string} nameString - The name string to parse
+     * @returns {{firstName: string, lastName: string, fullName: string}}
+     */
+    parseStudentName: function(nameString) {
+        if (!nameString || typeof nameString !== 'string') {
+            return { firstName: '', lastName: '', fullName: '' };
+        }
+
+        const normalized = nameString.trim().toUpperCase();
+
+        // Split on comma
+        const commaIndex = normalized.indexOf(',');
+
+        if (commaIndex === -1) {
+            // No comma - try space-based parsing (first word = last name)
+            const parts = normalized.split(/\s+/);
+            if (parts.length >= 2) {
+                return {
+                    lastName: parts[0],
+                    firstName: parts.slice(1).join(' '),
+                    fullName: normalized
+                };
+            }
+            return { firstName: normalized, lastName: '', fullName: normalized };
+        }
+
+        // Comma-separated: "LASTNAME, FIRSTNAME MIDDLENAME"
+        const lastName = normalized.substring(0, commaIndex).trim();
+        const firstName = normalized.substring(commaIndex + 1).trim();
+
+        return {
+            lastName,
+            firstName,
+            fullName: normalized
+        };
+    },
+
+    /**
+     * Extract students from a sheet based on the name column
+     * @param {Array} sheetData - 2D array of sheet data
+     * @param {number} nameColumnIndex - Index of the name column
+     * @returns {Array<{originalName: string, parsedName: Object, rowIndex: number}>}
+     */
+    extractStudentsFromSheet: function(sheetData, nameColumnIndex) {
+        const students = [];
+
+        // Skip header row (row 0)
+        for (let i = 1; i < sheetData.length; i++) {
+            const row = sheetData[i];
+            if (row && row[nameColumnIndex]) {
+                const originalName = String(row[nameColumnIndex]).trim();
+                if (originalName) {
+                    students.push({
+                        originalName,
+                        parsedName: this.parseStudentName(originalName),
+                        rowIndex: i
+                    });
+                }
+            }
+        }
+
+        return students;
+    },
+
+    /**
+     * Get column headers and sample data from first sheet
+     * @param {Array} sheetData - 2D array of sheet data
+     * @returns {Array<{index: number, header: string, sample: string}>}
+     */
+    getColumnInfo: function(sheetData) {
+        if (!sheetData || sheetData.length < 2) {
+            return [];
+        }
+
+        const headerRow = sheetData[0] || [];
+        const sampleRow = sheetData[1] || [];
+
+        const columns = [];
+        for (let i = 0; i < headerRow.length; i++) {
+            columns.push({
+                index: i,
+                header: String(headerRow[i] || `Column ${i + 1}`),
+                sample: String(sampleRow[i] || '')
+            });
+        }
+
+        return columns;
+    }
+};
