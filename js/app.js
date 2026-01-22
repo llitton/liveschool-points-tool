@@ -726,9 +726,70 @@ async function createBehaviorEntry(entry) {
 
     console.log("=== COMPLETE ===");
     console.log("Successfully processed: " + successCount + "/" + totalStudents + " students");
+
     if (failedStudents.length > 0) {
         console.warn("Failed students (" + failedStudents.length + "):", failedStudents);
+
+        // Generate a retry script for failed students
+        const retryEntry = {
+            ...entry,
+            students: failedStudents
+        };
+
+        const retryScript = \`
+// ========== RETRY SCRIPT FOR FAILED STUDENTS ==========
+// Copy and paste this entire block to retry the \${failedStudents.length} failed students
+
+const retryEntry = \${JSON.stringify(retryEntry, null, 2)};
+
+(async () => {
+    const batches = [];
+    for (let i = 0; i < retryEntry.students.length; i += 50) {
+        batches.push(retryEntry.students.slice(i, i + 50));
     }
+
+    console.log("Retrying " + retryEntry.students.length + " students in " + batches.length + " batch(es)...");
+
+    for (let i = 0; i < batches.length; i++) {
+        const payload = {
+            time: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            date: new Date().toISOString().split('T')[0],
+            roster: retryEntry.roster,
+            location: retryEntry.location,
+            students: batches[i],
+            school: retryEntry.school,
+            behaviors: retryEntry.behaviors,
+            comment: retryEntry.comment || ""
+        };
+
+        try {
+            const response = await fetch("https://api.liveschoolapp.com/v2/conducts", {
+                method: "POST",
+                headers: { "accept": "application/json, text/plain, */*", "content-type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (data.status === 'error') {
+                console.error("Retry batch " + (i+1) + " FAILED:", data.error);
+            } else {
+                console.log("Retry batch " + (i+1) + " SUCCESS: " + batches[i].length + " students");
+            }
+        } catch (error) {
+            console.error("Retry batch " + (i+1) + " ERROR:", error);
+        }
+
+        if (i < batches.length - 1) await new Promise(r => setTimeout(r, 2000));
+    }
+    console.log("Retry complete!");
+})();
+// ========== END RETRY SCRIPT ==========
+\`;
+
+        console.log(retryScript);
+    }
+
+    return { successCount, failedStudents };
 }
 
 const entries = [
