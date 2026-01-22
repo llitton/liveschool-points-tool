@@ -185,9 +185,44 @@ These stay the same for a single school but change between schools.
 
 The generated script includes:
 1. **Batching:** Splits students into groups of 50
-2. **Retry logic:** 3 attempts with exponential backoff
+2. **Retry logic:** 3 attempts with exponential backoff (2s, 4s, 6s delays)
 3. **Progress logging:** Shows batch progress in console
 4. **Error reporting:** Lists failed student IDs if any batches fail
+5. **Auto-generated retry script:** If batches fail, outputs a ready-to-paste script for just the failed students
+
+### Retrying Failed Batches
+
+If any batches fail after all retry attempts, the script automatically outputs a complete retry script in the console:
+
+```
+=== COMPLETE ===
+Successfully processed: 200/250 students
+Failed students (50): [3706219, 3707648, ...]
+
+// ========== RETRY SCRIPT FOR FAILED STUDENTS ==========
+// Copy and paste this entire block to retry the 50 failed students
+
+const retryEntry = {
+  "roster": 2315434,
+  "location": 22465,
+  "students": [3706219, 3707648, ...],
+  "school": 4583,
+  "behaviors": { "228201": { "type": "merit" } }
+};
+
+(async () => {
+    // ... complete retry logic
+})();
+// ========== END RETRY SCRIPT ==========
+```
+
+**To retry failed students:**
+1. Look for the retry script in the console output (between the `=====` lines)
+2. Copy the entire retry script
+3. Paste it into the console
+4. Press Enter
+
+The retry script includes only the failed student IDs with all original settings preserved.
 
 ## Project Structure
 
@@ -274,9 +309,13 @@ python3 -m http.server 8000
 - Refresh LiveSchool - there may be a display delay
 
 ### Batch failed after retries
-- The specific student IDs are logged in console
-- May need to run those manually
-- Could be invalid student IDs
+- The script automatically generates a retry script in the console
+- Copy and paste the retry script to try again with just the failed students
+- If retries keep failing:
+  - Wait a few minutes (API might be rate limiting)
+  - Try with smaller batches
+  - Check if student IDs are valid in LiveSchool
+  - Could be a temporary LiveSchool API issue
 
 ## Future Improvements
 
