@@ -357,16 +357,29 @@ The Demo Data Generator mode allows you to create realistic point history for de
    - Random dates within the range
    - Random times within school hours (8:00 AM - 3:30 PM)
 
-### Behavior Discovery Script
+### Importing Behaviors
 
-The tool provides a helper script to discover available behaviors:
-
+**Option 1: From API Response (Recommended)**
 1. Log into LiveSchool in your browser
-2. Click "Show Behavior Discovery Script"
-3. Copy the script
-4. Open browser DevTools (F12) → Console
-5. Paste and run the script
-6. It will display all behaviors with their IDs, names, and types
+2. Open DevTools (F12) → Network tab
+3. Refresh the page or navigate to the points screen
+4. Look for a request to `/behaviors`
+5. Click it and go to the Response tab
+6. Copy the entire JSON response
+7. Paste into the "Import from Discovery Script" textarea
+8. Click Import
+
+The tool handles the LiveSchool API format automatically, including:
+- Behaviors with type "positive", "negative", or "both"
+- Hidden behaviors (automatically skipped)
+- Object format `{ items: { "12345": {...} } }`
+
+**Option 2: Discovery Script**
+1. Click "Show Behavior Discovery Script"
+2. Copy the script
+3. Paste in LiveSchool's browser console
+4. Copy the JSON output
+5. Paste into the Import textarea
 
 ### Demo Script Features
 
@@ -397,6 +410,40 @@ Total assignments: 4125
 Successfully processed: 4125 point assignments
 Demo data generation complete!
 ```
+
+## Onboarding & Help
+
+The tool includes built-in onboarding for new users:
+
+- **Welcome Modal**: Shows automatically on first visit with getting started guide
+- **Changelog Modal**: Shows automatically when returning users encounter a new version
+- **Help Button**: Click "Help" in the header to re-open the welcome guide anytime
+- **What's New Button**: Click to see the changelog and recent updates
+
+First-visit and version tracking uses localStorage keys:
+- `liveschool-points-visited`: Whether user has seen welcome modal
+- `liveschool-points-version`: Last version user has seen
+
+## Changelog
+
+### v2.0.0 (January 2026)
+- **New: Demo Data Generator Mode** - Create randomized point history for demo sites
+- Configurable positive:negative ratios (3:1, 4:1, 5:1, etc.)
+- Date range selection with weekday-only distribution
+- Import behaviors directly from LiveSchool API response
+- Behavior discovery script
+- Welcome modal for first-time visitors
+- Changelog modal for returning users
+
+### v1.1.0 (January 2026)
+- Added retry script generation for failed batches
+- Improved error handling and progress logging
+
+### v1.0.0 (January 2026)
+- Initial release
+- Name matching with fuzzy search
+- Batch processing with retry logic
+- Manual match resolution for unmatched students
 
 ## Future Improvements
 
