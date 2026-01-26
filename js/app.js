@@ -1541,7 +1541,36 @@ const CONFIG = {
     negativeRatio: ${ratio.negative},
     batchSize: 50,
     batchDelay: 1000,
-    retryAttempts: 3
+    retryAttempts: 3,
+    // Random comments for more realistic demo data
+    positiveComments: [
+        "", "", "", "", "",  // Empty comments are common
+        "Great job today!",
+        "Keep up the good work!",
+        "Excellent effort!",
+        "Way to go!",
+        "Awesome!",
+        "Nice work!",
+        "Well done!",
+        "Fantastic!",
+        "Super star!",
+        "You're doing great!",
+        "Proud of you!",
+        "Amazing effort!",
+        "Outstanding!",
+        "Great participation!",
+        "Thank you for being prepared!"
+    ],
+    negativeComments: [
+        "", "", "",  // Empty comments
+        "Please stay focused",
+        "Remember classroom expectations",
+        "Let's make better choices",
+        "See me after class",
+        "Parent contact needed",
+        "Verbal warning given",
+        "Please follow directions"
+    ]
 };
 
 // Utility functions
@@ -1565,6 +1594,11 @@ function getRandomSchoolTime() {
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getRandomComment(type) {
+    const comments = type === 'merit' ? CONFIG.positiveComments : CONFIG.negativeComments;
+    return getRandomElement(comments);
 }
 
 // Generate all point assignments
@@ -1640,7 +1674,7 @@ async function sendBatch(group, batchStudents, batchNum, totalBatches, attempt =
         students: batchStudents.map(Number),
         school: CONFIG.school,
         behaviors: { [group.behaviorId]: { type: group.type } },
-        comment: ""
+        comment: getRandomComment(group.type)
     };
 
     try {
