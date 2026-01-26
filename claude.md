@@ -470,7 +470,9 @@ First-visit and version tracking uses localStorage keys:
 - **New: Demo Data Generator Mode** - Create randomized point history for demo sites
 - Configurable positive:negative ratios (3:1, 4:1, 5:1, etc.)
 - Date range selection with weekday-only distribution
-- Random comments for each point (positive/constructive based on type)
+- PBIS-aligned random comments:
+  - Behavior-specific praise for positive points (50% include comments)
+  - Respectful corrective feedback for negative points (100% include comments)
 - Import behaviors directly from LiveSchool API response
 - Behavior discovery script
 - Welcome modal for first-time visitors
