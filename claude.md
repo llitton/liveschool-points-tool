@@ -391,27 +391,43 @@ The generated demo script includes:
 - **Random Distribution**: Points are shuffled for realistic variety
 - **Random Comments**: Contextually appropriate comments for each point
 
-### Random Comments
+### Random Comments (PBIS-Aligned)
 
-The demo data includes realistic comments to make the data feel authentic:
+The demo data includes realistic comments following PBIS (Positive Behavioral Interventions and Supports) best practices:
 
-**Positive Points (50% have comments):**
-- "Great job today!"
-- "Awesome participation!"
-- "Thank you for being prepared!"
-- "You're a role model for others!"
-- "Excellent focus today!"
-- ...and 15 more variations
+**Behavior-Specific Praise (50% of positive points):**
 
-**Negative Points (100% have comments):**
-- "Please stay focused on the task"
-- "Remember our classroom expectations"
-- "Redirected multiple times today"
-- "Parent contact recommended"
-- "Please follow directions the first time"
-- ...and 15 more variations
+PBIS research shows effective praise should be specific and observable, stating exactly what behavior the student demonstrated. Our comments follow the formula: [Praise word] + [specific behavior observed]
 
-This mirrors real-world usage where teachers often skip comments for quick positive reinforcement but almost always document negative behaviors.
+Examples:
+- "Thank you for following directions the first time"
+- "Great job staying focused during the lesson"
+- "I appreciate how you worked quietly at your desk"
+- "Nice job being prepared with all your materials today"
+- "Thank you for raising your hand and waiting to be called on"
+- ...and 15 more behavior-specific variations
+
+**Corrective Feedback (100% of negative points):**
+
+PBIS corrective feedback should be brief, respectful, and state the expectation. Our comments follow this pattern:
+
+Examples:
+- "Reminder: Please stay focused on the task at hand"
+- "Remember to raise your hand before speaking"
+- "Redirected to follow classroom expectations"
+- "Please follow directions the first time asked"
+- "Reminder to use appropriate voice level"
+- ...and 15 more respectful redirections
+
+**Why These Patterns:**
+- Positive: 50% have comments because teachers often give quick acknowledgments without detailed notes
+- Negative: 100% have comments because documentation is important for behavior tracking and parent communication
+- All comments are specific to observable behaviors, not vague praise like "Good job!"
+
+**Sources:**
+- [IRIS Center - Behavior-Specific Praise](https://iris.peabody.vanderbilt.edu/module/bi2-elem/cresource/q1/p02/)
+- [Understood.org - Respectful Redirection](https://www.understood.org/en/articles/behavior-strategy-respectful-redirection)
+- [PBIS.org](https://www.pbis.org/)
 
 ### Example Output
 
