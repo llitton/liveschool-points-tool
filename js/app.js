@@ -1543,33 +1543,53 @@ const CONFIG = {
     batchDelay: 1000,
     retryAttempts: 3,
     // Random comments for more realistic demo data
+    // 50% chance of comment for positive points (20 empty + 20 comments)
     positiveComments: [
-        "", "", "", "", "",  // Empty comments are common
+        "", "", "", "", "", "", "", "", "", "",
+        "", "", "", "", "", "", "", "", "", "",
         "Great job today!",
         "Keep up the good work!",
-        "Excellent effort!",
+        "Excellent effort in class!",
         "Way to go!",
-        "Awesome!",
-        "Nice work!",
+        "Awesome participation!",
+        "Nice work on that assignment!",
         "Well done!",
-        "Fantastic!",
-        "Super star!",
+        "Fantastic attitude today!",
         "You're doing great!",
-        "Proud of you!",
+        "Proud of your progress!",
         "Amazing effort!",
-        "Outstanding!",
-        "Great participation!",
-        "Thank you for being prepared!"
+        "Outstanding work!",
+        "Thank you for being prepared!",
+        "Great teamwork!",
+        "Excellent focus today!",
+        "You're a role model for others!",
+        "Love seeing your enthusiasm!",
+        "Great leadership!",
+        "Super helpful today!",
+        "Wonderful contribution to class!"
     ],
+    // 100% chance of comment for negative points (20 comments, no empties)
     negativeComments: [
-        "", "", "",  // Empty comments
-        "Please stay focused",
-        "Remember classroom expectations",
-        "Let's make better choices",
-        "See me after class",
-        "Parent contact needed",
+        "Please stay focused on the task",
+        "Remember our classroom expectations",
+        "Let's make better choices next time",
+        "See me after class to discuss",
+        "Parent contact recommended",
         "Verbal warning given",
-        "Please follow directions"
+        "Please follow directions the first time",
+        "Redirected multiple times today",
+        "Off-task behavior noted",
+        "Disrupting others' learning",
+        "Please be respectful to classmates",
+        "Unprepared for class",
+        "Late to class",
+        "Missing required materials",
+        "Please raise your hand before speaking",
+        "Electronic device violation",
+        "Dress code reminder given",
+        "Please stay in assigned seat",
+        "Excessive talking during instruction",
+        "Work completion reminder needed"
     ]
 };
 

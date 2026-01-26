@@ -356,6 +356,7 @@ The Demo Data Generator mode allows you to create realistic point history for de
    - Different behaviors per student
    - Random dates within the range
    - Random times within school hours (8:00 AM - 3:30 PM)
+   - Random comments (positive for merits, constructive for demerits)
 
 ### Importing Behaviors
 
@@ -430,6 +431,7 @@ First-visit and version tracking uses localStorage keys:
 - **New: Demo Data Generator Mode** - Create randomized point history for demo sites
 - Configurable positive:negative ratios (3:1, 4:1, 5:1, etc.)
 - Date range selection with weekday-only distribution
+- Random comments for each point (positive/constructive based on type)
 - Import behaviors directly from LiveSchool API response
 - Behavior discovery script
 - Welcome modal for first-time visitors
