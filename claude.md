@@ -389,6 +389,29 @@ The generated demo script includes:
 - **Retry Logic**: 3 attempts with exponential backoff
 - **Progress Logging**: Shows progress in the console
 - **Random Distribution**: Points are shuffled for realistic variety
+- **Random Comments**: Contextually appropriate comments for each point
+
+### Random Comments
+
+The demo data includes realistic comments to make the data feel authentic:
+
+**Positive Points (50% have comments):**
+- "Great job today!"
+- "Awesome participation!"
+- "Thank you for being prepared!"
+- "You're a role model for others!"
+- "Excellent focus today!"
+- ...and 15 more variations
+
+**Negative Points (100% have comments):**
+- "Please stay focused on the task"
+- "Remember our classroom expectations"
+- "Redirected multiple times today"
+- "Parent contact recommended"
+- "Please follow directions the first time"
+- ...and 15 more variations
+
+This mirrors real-world usage where teachers often skip comments for quick positive reinforcement but almost always document negative behaviors.
 
 ### Example Output
 
