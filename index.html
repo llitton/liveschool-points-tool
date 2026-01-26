@@ -18,9 +18,87 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
 </head>
 <body>
+    <!-- Welcome Modal (shows on first visit) -->
+    <div id="welcome-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Welcome to LiveSchool Points Tool</h2>
+                <button class="modal-close" id="close-welcome">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>This tool helps you bulk-assign behaviors to students in LiveSchool.</p>
+
+                <div class="feature-cards">
+                    <div class="feature-card">
+                        <div class="feature-icon">📋</div>
+                        <h4>Assign Points</h4>
+                        <p>Match student names from a school spreadsheet to LiveSchool IDs and generate scripts to assign behaviors.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🎲</div>
+                        <h4>Demo Data Generator</h4>
+                        <p>Create randomized point history for demo sites with configurable ratios and date ranges.</p>
+                    </div>
+                </div>
+
+                <div class="getting-started">
+                    <h4>Getting Started</h4>
+                    <ol>
+                        <li>Choose your mode using the toggle at the top</li>
+                        <li>Upload the required files (CSV export from LiveSchool)</li>
+                        <li>Configure your site IDs and behaviors</li>
+                        <li>Generate the script and paste it in LiveSchool's browser console</li>
+                    </ol>
+                </div>
+
+                <button id="start-using" class="btn primary">Get Started</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Changelog Modal -->
+    <div id="changelog-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>What's New</h2>
+                <button class="modal-close" id="close-changelog">&times;</button>
+            </div>
+            <div class="modal-body changelog-body">
+                <div class="changelog-entry">
+                    <div class="changelog-version">v2.0.0 <span class="changelog-date">January 2026</span></div>
+                    <ul>
+                        <li><strong>New: Demo Data Generator</strong> - Create randomized point history for demo sites</li>
+                        <li>Configure positive:negative ratios (3:1, 4:1, 5:1, etc.)</li>
+                        <li>Set date ranges - points only on weekdays</li>
+                        <li>Import behaviors directly from LiveSchool API response</li>
+                        <li>Behavior discovery script to find available behavior IDs</li>
+                    </ul>
+                </div>
+                <div class="changelog-entry">
+                    <div class="changelog-version">v1.1.0 <span class="changelog-date">January 2026</span></div>
+                    <ul>
+                        <li>Added retry script generation for failed batches</li>
+                        <li>Improved error handling and progress logging</li>
+                    </ul>
+                </div>
+                <div class="changelog-entry">
+                    <div class="changelog-version">v1.0.0 <span class="changelog-date">January 2026</span></div>
+                    <ul>
+                        <li>Initial release</li>
+                        <li>Name matching with fuzzy search</li>
+                        <li>Batch processing with retry logic</li>
+                        <li>Manual match resolution for unmatched students</li>
+                    </ul>
+                </div>
+                <button id="close-changelog-btn" class="btn secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Sticky Summary Bar -->
     <div class="sticky-summary" id="sticky-summary">
-        <div class="summary-content">
+        <!-- Assign Mode Summary -->
+        <div class="summary-content assign-summary">
             <div class="summary-item" id="summary-school-file">
                 <span class="summary-icon">○</span>
                 <span class="summary-label">School File</span>
@@ -38,16 +116,49 @@
                 <span class="summary-label">Matched</span>
             </div>
         </div>
+        <!-- Demo Mode Summary -->
+        <div class="summary-content demo-summary hidden">
+            <div class="summary-item" id="demo-summary-students">
+                <span class="summary-icon">○</span>
+                <span class="summary-label">Students</span>
+            </div>
+            <div class="summary-item" id="demo-summary-config">
+                <span class="summary-icon">○</span>
+                <span class="summary-label">Config</span>
+            </div>
+            <div class="summary-item" id="demo-summary-behaviors">
+                <span class="summary-icon">○</span>
+                <span class="summary-label">Behaviors</span>
+            </div>
+            <div class="summary-item" id="demo-summary-settings">
+                <span class="summary-icon">○</span>
+                <span class="summary-label">Settings</span>
+            </div>
+        </div>
     </div>
 
     <div class="container">
         <header class="header">
-            <h1>LiveSchool Points Tool</h1>
-            <p class="subtitle">Match student names and generate behavior scripts</p>
+            <div class="header-top">
+                <div class="header-title">
+                    <h1>LiveSchool Points Tool</h1>
+                    <p class="subtitle">Match student names and generate behavior scripts</p>
+                </div>
+                <div class="header-actions">
+                    <button id="show-changelog" class="btn-link">What's New</button>
+                    <button id="show-help" class="btn-link">Help</button>
+                </div>
+            </div>
+
+            <!-- Mode Toggle -->
+            <div class="mode-toggle">
+                <button class="mode-btn active" data-mode="assign">Assign Points</button>
+                <button class="mode-btn" data-mode="demo">Demo Data Generator</button>
+            </div>
         </header>
 
-        <!-- Progress Indicator -->
-        <div class="progress-bar">
+        <!-- Progress Indicator (Assign Mode) -->
+        <div class="progress-bar assign-step">
             <div class="progress-step active" data-step="1">
                 <div class="step-number">1</div>
                 <div class="step-label">Upload</div>
@@ -80,7 +191,7 @@
         </div>
 
         <!-- Step 1: File Upload -->
-        <section class="step active" id="step-upload" data-step="1">
+        <section class="step assign-step active" id="step-upload" data-step="1">
             <div class="step-header">
                 <h2><span class="step-badge">1</span> Upload Files</h2>
             </div>
@@ -111,7 +222,7 @@
         </section>
 
         <!-- Step 2: Column Mapping -->
-        <section class="step locked" id="step-columns" data-step="2">
+        <section class="step assign-step locked" id="step-columns" data-step="2">
             <div class="step-header">
                 <h2><span class="step-badge">2</span> Select Name Column</h2>
                 <span class="lock-icon">🔒</span>
@@ -124,7 +235,7 @@
         </section>
 
         <!-- Step 3: School Configuration -->
-        <section class="step locked" id="step-config" data-step="3">
+        <section class="step assign-step locked" id="step-config" data-step="3">
             <div class="step-header">
                 <h2><span class="step-badge">3</span> School Configuration</h2>
                 <span class="lock-icon">🔒</span>
@@ -149,7 +260,7 @@
         </section>
 
         <!-- Step 4: Tab/Behavior Mapping -->
-        <section class="step locked" id="step-behaviors" data-step="4">
+        <section class="step assign-step locked" id="step-behaviors" data-step="4">
             <div class="step-header">
                 <h2><span class="step-badge">4</span> Assign Behaviors to Tabs</h2>
                 <span class="lock-icon">🔒</span>
@@ -171,7 +282,7 @@
         </section>
 
         <!-- Step 5: Match & Review -->
-        <section class="step locked" id="step-match" data-step="5">
+        <section class="step assign-step locked" id="step-match" data-step="5">
             <div class="step-header">
                 <h2><span class="step-badge">5</span> Review Matches</h2>
                 <span class="lock-icon">🔒</span>
@@ -209,7 +320,7 @@
         </section>
 
         <!-- Step 6: Generate Output -->
-        <section class="step locked" id="step-output" data-step="6">
+        <section class="step assign-step locked" id="step-output" data-step="6">
             <div class="step-header">
                 <h2><span class="step-badge">6</span> Generated Scripts</h2>
                 <span class="lock-icon">🔒</span>
@@ -220,6 +331,210 @@
                     <div class="empty-state">
                         <div class="empty-icon">📝</div>
                         <p>Your scripts will appear here once generated</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================= -->
+        <!-- DEMO MODE SECTIONS (hidden by default) -->
+        <!-- ============================================= -->
+
+        <!-- Demo Step 1: Upload LiveSchool CSV -->
+        <section class="step demo-step hidden" id="demo-step-upload">
+            <div class="step-header">
+                <h2><span class="step-badge">1</span> Upload Student Data</h2>
+            </div>
+            <div class="step-content">
+                <div class="upload-box single" id="demo-liveschool-dropzone">
+                    <div class="dropzone-content">
+                        <div class="upload-icon">📊</div>
+                        <label for="demo-liveschool-file">LiveSchool CSV Export</label>
+                        <input type="file" id="demo-liveschool-file" accept=".csv">
+                        <p class="upload-hint">Drag & drop or click to select</p>
+                        <p class="upload-desc">Export from LiveSchool with student IDs</p>
+                    </div>
+                    <div id="demo-liveschool-file-status" class="file-status"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Demo Step 2: Site Configuration -->
+        <section class="step demo-step hidden locked" id="demo-step-config">
+            <div class="step-header">
+                <h2><span class="step-badge">2</span> Site Configuration</h2>
+                <span class="lock-icon">🔒</span>
+            </div>
+            <div class="step-content">
+                <p class="step-description">Enter the IDs for this demo site (found in LiveSchool URLs or network requests)</p>
+                <div class="config-grid">
+                    <div class="config-field">
+                        <label for="demo-roster-id">Roster ID</label>
+                        <input type="text" id="demo-roster-id" placeholder="e.g., 12345">
+                    </div>
+                    <div class="config-field">
+                        <label for="demo-location-id">Location ID</label>
+                        <input type="text" id="demo-location-id" placeholder="e.g., 678">
+                    </div>
+                    <div class="config-field">
+                        <label for="demo-school-id">School ID</label>
+                        <input type="text" id="demo-school-id" placeholder="e.g., 99">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Demo Step 3: Behavior Configuration -->
+        <section class="step demo-step hidden locked" id="demo-step-behaviors">
+            <div class="step-header">
+                <h2><span class="step-badge">3</span> Configure Behaviors</h2>
+                <span class="lock-icon">🔒</span>
+            </div>
+            <div class="step-content">
+                <p class="step-description">Add the behaviors to use for demo data. Use the discovery script to find behavior IDs.</p>
+
+                <div class="behavior-discovery">
+                    <div class="discovery-actions">
+                        <button id="show-discovery-script" class="btn secondary">Show Behavior Discovery Script</button>
+                        <button id="copy-discovery-script" class="copy-btn">Copy Script</button>
+                    </div>
+                    <div id="discovery-script-container" class="hidden">
+                        <p class="hint">Paste this script in the LiveSchool browser console while logged in:</p>
+                        <pre class="discovery-code"><code class="language-javascript" id="discovery-script-code"></code></pre>
+                    </div>
+                </div>
+
+                <div class="behavior-import">
+                    <h4>Import from Discovery Script</h4>
+                    <p class="hint">Paste the JSON output from the discovery script:</p>
+                    <div class="import-row">
+                        <textarea id="import-behaviors-json" placeholder='[{"id":"12345","name":"Following Rules","type":"merit"},...]' rows="2"></textarea>
+                        <button id="import-behaviors" class="btn primary">Import</button>
+                    </div>
+                </div>
+
+                <div class="behavior-add-form">
+                    <h4>Or Add Manually</h4>
+                    <div class="behavior-input-row">
+                        <input type="text" id="new-behavior-id" placeholder="Behavior ID">
+                        <input type="text" id="new-behavior-name" placeholder="Name (optional)">
+                        <select id="new-behavior-type">
+                            <option value="merit">Merit (+)</option>
+                            <option value="demerit">Demerit (-)</option>
+                        </select>
+                        <button id="add-behavior" class="btn secondary">Add</button>
+                    </div>
+                </div>
+
+                <div id="behavior-list" class="behavior-list">
+                    <div class="empty-state small">
+                        <p>No behaviors added yet</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Demo Step 4: Demo Settings -->
+        <section class="step demo-step hidden locked" id="demo-step-settings">
+            <div class="step-header">
+                <h2><span class="step-badge">4</span> Demo Settings</h2>
+                <span class="lock-icon">🔒</span>
+            </div>
+            <div class="step-content">
+                <div class="settings-grid">
+                    <div class="setting-group">
+                        <h4>Date Range</h4>
+                        <div class="date-inputs">
+                            <div class="config-field">
+                                <label for="demo-start-date">Start Date</label>
+                                <input type="date" id="demo-start-date">
+                            </div>
+                            <div class="config-field">
+                                <label for="demo-end-date">End Date</label>
+                                <input type="date" id="demo-end-date">
+                            </div>
+                        </div>
+                        <p class="hint">Points will only be assigned on weekdays (Mon-Fri)</p>
+                    </div>
+
+                    <div class="setting-group">
+                        <h4>Points Per Student</h4>
+                        <div class="points-inputs">
+                            <div class="config-field">
+                                <label for="demo-min-points">Minimum</label>
+                                <input type="number" id="demo-min-points" value="15" min="1">
+                            </div>
+                            <div class="config-field">
+                                <label for="demo-max-points">Maximum</label>
+                                <input type="number" id="demo-max-points" value="40" min="1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <h4>Positive to Negative Ratio</h4>
+                        <div class="ratio-selector">
+                            <select id="demo-ratio">
+                                <option value="3">3:1 (75% positive)</option>
+                                <option value="4" selected>4:1 (80% positive)</option>
+                                <option value="5">5:1 (83% positive)</option>
+                                <option value="6">6:1 (86% positive)</option>
+                                <option value="custom">Custom...</option>
+                            </select>
+                            <div id="custom-ratio-inputs" class="hidden">
+                                <input type="number" id="demo-custom-positive" value="4" min="1" max="20">
+                                <span>:</span>
+                                <input type="number" id="demo-custom-negative" value="1" min="1" max="10">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Demo Step 5: Generate Demo Script -->
+        <section class="step demo-step hidden locked" id="demo-step-generate">
+            <div class="step-header">
+                <h2><span class="step-badge">5</span> Generate Demo Script</h2>
+                <span class="lock-icon">🔒</span>
+            </div>
+            <div class="step-content">
+                <div id="demo-preview" class="demo-preview hidden">
+                    <h4>Preview</h4>
+                    <div class="preview-stats">
+                        <div class="preview-stat">
+                            <span class="preview-label">Students</span>
+                            <span class="preview-value" id="preview-students">0</span>
+                        </div>
+                        <div class="preview-stat">
+                            <span class="preview-label">Date Range</span>
+                            <span class="preview-value" id="preview-dates">-</span>
+                        </div>
+                        <div class="preview-stat">
+                            <span class="preview-label">Weekdays</span>
+                            <span class="preview-value" id="preview-weekdays">0</span>
+                        </div>
+                        <div class="preview-stat">
+                            <span class="preview-label">Est. Total Points</span>
+                            <span class="preview-value" id="preview-total-points">0</span>
+                        </div>
+                        <div class="preview-stat">
+                            <span class="preview-label">Positive Points</span>
+                            <span class="preview-value positive" id="preview-positive">0</span>
+                        </div>
+                        <div class="preview-stat">
+                            <span class="preview-label">Negative Points</span>
+                            <span class="preview-value negative" id="preview-negative">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="generate-demo-script" class="btn primary">Generate Demo Script</button>
+
+                <div id="demo-scripts-output">
+                    <div class="empty-state">
+                        <div class="empty-icon">📝</div>
+                        <p>Your demo script will appear here once generated</p>
                     </div>
                 </div>
             </div>

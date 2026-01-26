@@ -2,14 +2,18 @@
 
 ## Overview
 
-This tool helps bulk-assign behaviors (points) to students in LiveSchool by:
-1. Parsing a school-provided XLSX file with student names
-2. Matching names against a LiveSchool CSV export to get student IDs
-3. Generating a script to batch-submit behaviors via the LiveSchool API
+This tool helps bulk-assign behaviors (points) to students in LiveSchool. It has two modes:
 
-**Live URL:** https://points.liveschoolhelp.com (if deployed)
+1. **Assign Points Mode** - Match student names from school spreadsheets to LiveSchool IDs and generate assignment scripts
+2. **Demo Data Generator Mode** - Create randomized point history for demo/sales sites
+
+**Live URL:** https://points.liveschoolhelp.com
+
+**Deployment:** Vercel (auto-deploys on push to main)
 
 ## Quick Start for Team Members
+
+### Assign Points Mode (Default)
 
 1. Open the tool in your browser
 2. Upload the school's XLSX file (drag & drop or click)
@@ -21,6 +25,24 @@ This tool helps bulk-assign behaviors (points) to students in LiveSchool by:
 8. Review any unmatched students
 9. Click "Generate Scripts"
 10. Copy the script and paste into LiveSchool's browser console
+
+### Demo Data Generator Mode
+
+Use this mode to backfill randomized point history for demo sites.
+
+1. Click "Demo Data Generator" toggle at the top
+2. Upload the LiveSchool CSV export (to get student IDs)
+3. Enter Roster ID, Location ID, and School ID
+4. Add behaviors:
+   - Click "Show Behavior Discovery Script" to get a helper script
+   - Paste the script in LiveSchool's console to list available behaviors
+   - Add at least one merit and one demerit behavior
+5. Configure settings:
+   - Start/End dates for the demo period
+   - Min/Max points per student
+   - Positive:Negative ratio (e.g., 4:1)
+6. Click "Generate Demo Script"
+7. Copy the script and paste into LiveSchool's browser console
 
 ## File Formats
 
@@ -316,6 +338,65 @@ python3 -m http.server 8000
   - Try with smaller batches
   - Check if student IDs are valid in LiveSchool
   - Could be a temporary LiveSchool API issue
+
+## Demo Data Generator
+
+The Demo Data Generator mode allows you to create realistic point history for demo sites. This is useful for sales demos where you need a site to have existing data.
+
+### How It Works
+
+1. **Upload Students**: Upload a LiveSchool CSV export to get student IDs
+2. **Configure Site**: Enter the Roster ID, Location ID, and School ID
+3. **Add Behaviors**: Add merit and demerit behaviors to use for the demo data
+4. **Set Parameters**:
+   - **Date Range**: Points will only be assigned on weekdays (Mon-Fri)
+   - **Points Per Student**: Random number between min and max
+   - **Ratio**: Positive to negative point ratio (e.g., 4:1 = 80% positive)
+5. **Generate**: Creates a script that randomizes everything:
+   - Different behaviors per student
+   - Random dates within the range
+   - Random times within school hours (8:00 AM - 3:30 PM)
+
+### Behavior Discovery Script
+
+The tool provides a helper script to discover available behaviors:
+
+1. Log into LiveSchool in your browser
+2. Click "Show Behavior Discovery Script"
+3. Copy the script
+4. Open browser DevTools (F12) → Console
+5. Paste and run the script
+6. It will display all behaviors with their IDs, names, and types
+
+### Demo Script Features
+
+The generated demo script includes:
+- **Batching**: Groups requests to avoid API limits (50 students per batch)
+- **Retry Logic**: 3 attempts with exponential backoff
+- **Progress Logging**: Shows progress in the console
+- **Random Distribution**: Points are shuffled for realistic variety
+
+### Example Output
+
+```
+=== DEMO DATA GENERATOR ===
+Students: 150
+Date range: 2025-08-01 to 2025-12-15
+Weekdays: 98
+Points per student: 15-40
+Ratio: 4:1
+
+Generating point assignments...
+Total assignments: 4125
+
+[Batch 1/83] 2025-08-05 | merit 228201 | 50 students ✓
+[Batch 2/83] 2025-08-12 | demerit 228203 | 35 students ✓
+...
+
+=== COMPLETE ===
+Successfully processed: 4125 point assignments
+Demo data generation complete!
+```
 
 ## Future Improvements
 

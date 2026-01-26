@@ -850,5 +850,1020 @@ const entries = [
     }
 };
 
+/**
+ * Demo Data Generator Application Logic
+ */
+const DemoApp = {
+    // State
+    currentMode: 'assign',
+    students: [],
+    behaviors: [],
+
+    /**
+     * Initialize demo mode
+     */
+    init: function() {
+        this.bindModeToggle();
+        this.bindDemoEvents();
+        this.loadSavedDemoConfig();
+        this.setDefaultDates();
+        this.generateDiscoveryScript();
+    },
+
+    /**
+     * Bind mode toggle events
+     */
+    bindModeToggle: function() {
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const mode = e.target.dataset.mode;
+                this.switchMode(mode);
+            });
+        });
+    },
+
+    /**
+     * Switch between assign and demo modes
+     */
+    switchMode: function(mode) {
+        this.currentMode = mode;
+
+        // Update toggle buttons
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+
+        // Update summary bars
+        document.querySelector('.assign-summary').classList.toggle('hidden', mode !== 'assign');
+        document.querySelector('.demo-summary').classList.toggle('hidden', mode !== 'demo');
+
+        // Show/hide appropriate sections
+        document.querySelectorAll('.assign-step').forEach(el => {
+            el.classList.toggle('hidden', mode !== 'assign');
+        });
+        document.querySelectorAll('.demo-step').forEach(el => {
+            el.classList.toggle('hidden', mode !== 'demo');
+        });
+    },
+
+    /**
+     * Bind demo mode event listeners
+     */
+    bindDemoEvents: function() {
+        // File upload
+        const dropzone = document.getElementById('demo-liveschool-dropzone');
+        const fileInput = document.getElementById('demo-liveschool-file');
+
+        if (dropzone && fileInput) {
+            dropzone.addEventListener('click', () => fileInput.click());
+
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('dragover');
+            });
+
+            dropzone.addEventListener('dragleave', () => {
+                dropzone.classList.remove('dragover');
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file) this.handleFileUpload(file);
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files[0]) this.handleFileUpload(e.target.files[0]);
+            });
+        }
+
+        // Config field changes
+        ['demo-roster-id', 'demo-location-id', 'demo-school-id'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('change', () => {
+                    this.saveDemoConfig();
+                    this.updateDemoSummary();
+                    this.checkDemoStepsUnlock();
+                });
+            }
+        });
+
+        // Discovery script toggle
+        const showDiscoveryBtn = document.getElementById('show-discovery-script');
+        if (showDiscoveryBtn) {
+            showDiscoveryBtn.addEventListener('click', () => {
+                const container = document.getElementById('discovery-script-container');
+                const isHidden = container.classList.contains('hidden');
+                container.classList.toggle('hidden');
+                showDiscoveryBtn.textContent = isHidden ? 'Hide Discovery Script' : 'Show Behavior Discovery Script';
+            });
+        }
+
+        // Copy discovery script
+        const copyDiscoveryBtn = document.getElementById('copy-discovery-script');
+        if (copyDiscoveryBtn) {
+            copyDiscoveryBtn.addEventListener('click', () => {
+                const script = this.getDiscoveryScriptText();
+                navigator.clipboard.writeText(script).then(() => {
+                    copyDiscoveryBtn.textContent = 'Copied!';
+                    copyDiscoveryBtn.classList.add('copied');
+                    setTimeout(() => {
+                        copyDiscoveryBtn.textContent = 'Copy Script';
+                        copyDiscoveryBtn.classList.remove('copied');
+                    }, 2000);
+                });
+            });
+        }
+
+        // Import behaviors
+        const importBehaviorsBtn = document.getElementById('import-behaviors');
+        if (importBehaviorsBtn) {
+            importBehaviorsBtn.addEventListener('click', () => this.importBehaviors());
+        }
+
+        // Add behavior
+        const addBehaviorBtn = document.getElementById('add-behavior');
+        if (addBehaviorBtn) {
+            addBehaviorBtn.addEventListener('click', () => this.addBehavior());
+        }
+
+        // Ratio selector
+        const ratioSelect = document.getElementById('demo-ratio');
+        if (ratioSelect) {
+            ratioSelect.addEventListener('change', (e) => {
+                const customInputs = document.getElementById('custom-ratio-inputs');
+                customInputs.classList.toggle('hidden', e.target.value !== 'custom');
+                this.updatePreview();
+            });
+        }
+
+        // Settings changes trigger preview update
+        ['demo-start-date', 'demo-end-date', 'demo-min-points', 'demo-max-points',
+         'demo-custom-positive', 'demo-custom-negative'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('change', () => this.updatePreview());
+            }
+        });
+
+        // Generate demo script
+        const generateBtn = document.getElementById('generate-demo-script');
+        if (generateBtn) {
+            generateBtn.addEventListener('click', () => this.generateDemoScript());
+        }
+    },
+
+    /**
+     * Handle file upload
+     */
+    handleFileUpload: async function(file) {
+        const statusEl = document.getElementById('demo-liveschool-file-status');
+        const dropzone = document.getElementById('demo-liveschool-dropzone');
+
+        statusEl.textContent = 'Parsing...';
+        statusEl.className = 'file-status loading';
+
+        try {
+            this.students = await Parser.parseLiveSchoolFile(file);
+            statusEl.textContent = `Loaded ${this.students.length} students`;
+            statusEl.className = 'file-status success';
+            dropzone.classList.add('has-file');
+
+            this.updateDemoSummary();
+            this.checkDemoStepsUnlock();
+        } catch (error) {
+            statusEl.textContent = 'Error: ' + error.message;
+            statusEl.className = 'file-status error';
+        }
+    },
+
+    /**
+     * Set default dates
+     */
+    setDefaultDates: function() {
+        const today = new Date();
+        const endDateEl = document.getElementById('demo-end-date');
+        const startDateEl = document.getElementById('demo-start-date');
+
+        if (endDateEl) {
+            endDateEl.value = today.toISOString().split('T')[0];
+        }
+
+        // Default start date: 3 months ago
+        if (startDateEl) {
+            const threeMonthsAgo = new Date(today);
+            threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+            startDateEl.value = threeMonthsAgo.toISOString().split('T')[0];
+        }
+    },
+
+    /**
+     * Generate the behavior discovery script
+     */
+    generateDiscoveryScript: function() {
+        const script = this.getDiscoveryScriptText();
+        const codeEl = document.getElementById('discovery-script-code');
+        if (codeEl) {
+            codeEl.textContent = script;
+            if (typeof Prism !== 'undefined') {
+                Prism.highlightElement(codeEl);
+            }
+        }
+    },
+
+    /**
+     * Get the discovery script text
+     */
+    getDiscoveryScriptText: function() {
+        return `// LiveSchool Behavior Discovery - Paste in console
+(async () => {
+    const schoolId = (window.location.href.match(/school=(\\d+)/) || [])[1] || prompt('School ID:');
+    if (!schoolId) return;
+    const r = await fetch(\`https://api.liveschoolapp.com/v2/schools/\${schoolId}/behaviors\`, { credentials: 'include' });
+    const d = await r.json();
+    const behaviors = (d.items || d.behaviors || d).filter(b => !b.hidden);
+    const result = behaviors.map(b => ({ id: String(b.id), name: b.name, type: b.type === 'positive' ? 'merit' : 'demerit' }));
+    console.log('=== COPY THIS JSON ===');
+    console.log(JSON.stringify(result));
+    console.log('=== BEHAVIORS ===');
+    result.filter(b => b.type === 'merit').forEach(b => console.log(\`+ \${b.id}: \${b.name}\`));
+    result.filter(b => b.type === 'demerit').forEach(b => console.log(\`- \${b.id}: \${b.name}\`));
+})();`;
+    },
+
+    /**
+     * Import behaviors from JSON
+     */
+    importBehaviors: function() {
+        const textarea = document.getElementById('import-behaviors-json');
+        const jsonText = textarea.value.trim();
+
+        if (!jsonText) {
+            alert('Please paste the JSON from the response tab');
+            return;
+        }
+
+        try {
+            const imported = JSON.parse(jsonText);
+
+            // Handle different formats
+            let behaviors = [];
+
+            if (Array.isArray(imported)) {
+                // Already an array
+                behaviors = imported;
+            } else if (imported.items && typeof imported.items === 'object') {
+                // LiveSchool format: { items: { "12345": {...}, "12346": {...} } }
+                behaviors = Object.values(imported.items);
+            } else if (typeof imported === 'object') {
+                // Just the items object: { "12345": {...}, "12346": {...} }
+                behaviors = Object.values(imported);
+            }
+
+            let added = 0;
+            let skipped = 0;
+
+            for (const b of behaviors) {
+                if (!b.id) continue;
+
+                const id = String(b.id).trim();
+                const name = b.name || `Behavior ${id}`;
+
+                // Handle type: "positive", "negative", "both", "merit", "demerit"
+                // "both" types will be added as merit (positive) since they can be used either way
+                let type;
+                if (b.type === 'negative' || b.type === 'demerit') {
+                    type = 'demerit';
+                } else {
+                    type = 'merit'; // positive, both, merit all become merit
+                }
+
+                // Skip duplicates
+                if (this.behaviors.find(existing => existing.id === id)) {
+                    skipped++;
+                    continue;
+                }
+
+                // Skip hidden behaviors
+                if (b.hidden) {
+                    continue;
+                }
+
+                this.behaviors.push({ id, name, type });
+                added++;
+            }
+
+            this.renderBehaviorList();
+            this.updateDemoSummary();
+            this.checkDemoStepsUnlock();
+
+            textarea.value = '';
+            alert(`Imported ${added} behaviors` + (skipped > 0 ? ` (${skipped} duplicates skipped)` : ''));
+
+        } catch (error) {
+            console.error('Import error:', error);
+            alert('Invalid JSON format. Copy the entire response from the Network tab\'s Response section.');
+        }
+    },
+
+    /**
+     * Add a behavior to the list
+     */
+    addBehavior: function() {
+        const idInput = document.getElementById('new-behavior-id');
+        const nameInput = document.getElementById('new-behavior-name');
+        const typeSelect = document.getElementById('new-behavior-type');
+
+        const id = idInput.value.trim();
+        const name = nameInput.value.trim() || `Behavior ${id}`;
+        const type = typeSelect.value;
+
+        if (!id) {
+            alert('Please enter a behavior ID');
+            return;
+        }
+
+        // Check for duplicates
+        if (this.behaviors.find(b => b.id === id)) {
+            alert('This behavior ID is already added');
+            return;
+        }
+
+        this.behaviors.push({ id, name, type });
+        this.renderBehaviorList();
+        this.updateDemoSummary();
+        this.checkDemoStepsUnlock();
+
+        // Clear inputs
+        idInput.value = '';
+        nameInput.value = '';
+        typeSelect.value = 'merit';
+    },
+
+    /**
+     * Remove a behavior from the list
+     */
+    removeBehavior: function(id) {
+        this.behaviors = this.behaviors.filter(b => b.id !== id);
+        this.renderBehaviorList();
+        this.updateDemoSummary();
+        this.checkDemoStepsUnlock();
+    },
+
+    /**
+     * Render the behavior list
+     */
+    renderBehaviorList: function() {
+        const container = document.getElementById('behavior-list');
+
+        if (this.behaviors.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state small">
+                    <p>No behaviors added yet</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = this.behaviors.map(b => `
+            <div class="behavior-item">
+                <div class="behavior-item-info">
+                    <span class="behavior-item-id">${this.escapeHtml(b.id)}</span>
+                    <span class="behavior-item-name">${this.escapeHtml(b.name)}</span>
+                    <span class="behavior-item-type ${b.type}">${b.type}</span>
+                </div>
+                <button class="behavior-item-remove" data-id="${b.id}" title="Remove">&times;</button>
+            </div>
+        `).join('');
+
+        // Bind remove buttons
+        container.querySelectorAll('.behavior-item-remove').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                this.removeBehavior(e.target.dataset.id);
+            });
+        });
+    },
+
+    /**
+     * Check and unlock demo steps based on completion
+     */
+    checkDemoStepsUnlock: function() {
+        // Step 2 (Config) - unlocks when students are loaded
+        const configStep = document.getElementById('demo-step-config');
+        if (this.students.length > 0) {
+            configStep.classList.remove('locked');
+        }
+
+        // Step 3 (Behaviors) - unlocks when config is filled
+        const rosterId = document.getElementById('demo-roster-id').value.trim();
+        const locationId = document.getElementById('demo-location-id').value.trim();
+        const schoolId = document.getElementById('demo-school-id').value.trim();
+
+        const behaviorsStep = document.getElementById('demo-step-behaviors');
+        if (rosterId && locationId && schoolId) {
+            behaviorsStep.classList.remove('locked');
+        }
+
+        // Step 4 (Settings) - unlocks when behaviors are added
+        const settingsStep = document.getElementById('demo-step-settings');
+        const hasMerit = this.behaviors.some(b => b.type === 'merit');
+        const hasDemerit = this.behaviors.some(b => b.type === 'demerit');
+
+        if (hasMerit && hasDemerit) {
+            settingsStep.classList.remove('locked');
+            this.updatePreview();
+        }
+
+        // Step 5 (Generate) - unlocks when settings are valid
+        const generateStep = document.getElementById('demo-step-generate');
+        const startDate = document.getElementById('demo-start-date').value;
+        const endDate = document.getElementById('demo-end-date').value;
+
+        if (startDate && endDate && hasMerit && hasDemerit) {
+            generateStep.classList.remove('locked');
+        }
+    },
+
+    /**
+     * Update demo summary bar
+     */
+    updateDemoSummary: function() {
+        // Students
+        const studentsSummary = document.getElementById('demo-summary-students');
+        if (this.students.length > 0) {
+            studentsSummary.querySelector('.summary-icon').textContent = '✓';
+            studentsSummary.querySelector('.summary-icon').classList.add('complete');
+            studentsSummary.querySelector('.summary-label').textContent = `${this.students.length} students`;
+        }
+
+        // Config
+        const configSummary = document.getElementById('demo-summary-config');
+        const rosterId = document.getElementById('demo-roster-id').value.trim();
+        const locationId = document.getElementById('demo-location-id').value.trim();
+        const schoolId = document.getElementById('demo-school-id').value.trim();
+
+        if (rosterId && locationId && schoolId) {
+            configSummary.querySelector('.summary-icon').textContent = '✓';
+            configSummary.querySelector('.summary-icon').classList.add('complete');
+            configSummary.querySelector('.summary-label').textContent = 'Configured';
+        }
+
+        // Behaviors
+        const behaviorsSummary = document.getElementById('demo-summary-behaviors');
+        if (this.behaviors.length > 0) {
+            behaviorsSummary.querySelector('.summary-icon').textContent = '✓';
+            behaviorsSummary.querySelector('.summary-icon').classList.add('complete');
+            behaviorsSummary.querySelector('.summary-label').textContent = `${this.behaviors.length} behaviors`;
+        }
+
+        // Settings
+        const settingsSummary = document.getElementById('demo-summary-settings');
+        const startDate = document.getElementById('demo-start-date').value;
+        const endDate = document.getElementById('demo-end-date').value;
+
+        if (startDate && endDate) {
+            settingsSummary.querySelector('.summary-icon').textContent = '✓';
+            settingsSummary.querySelector('.summary-icon').classList.add('complete');
+            settingsSummary.querySelector('.summary-label').textContent = 'Ready';
+        }
+    },
+
+    /**
+     * Get weekdays between two dates
+     */
+    getWeekdays: function(startDate, endDate) {
+        const weekdays = [];
+        const current = new Date(startDate);
+        const end = new Date(endDate);
+
+        while (current <= end) {
+            const day = current.getDay();
+            if (day !== 0 && day !== 6) { // Not Sunday (0) or Saturday (6)
+                weekdays.push(new Date(current));
+            }
+            current.setDate(current.getDate() + 1);
+        }
+
+        return weekdays;
+    },
+
+    /**
+     * Get random time between 8:00 AM and 3:30 PM
+     */
+    getRandomSchoolTime: function() {
+        // 8:00 AM = 8*60 = 480 minutes
+        // 3:30 PM = 15*60 + 30 = 930 minutes
+        const minMinutes = 480;
+        const maxMinutes = 930;
+        const randomMinutes = Math.floor(Math.random() * (maxMinutes - minMinutes + 1)) + minMinutes;
+
+        const hours = Math.floor(randomMinutes / 60);
+        const minutes = randomMinutes % 60;
+        const seconds = Math.floor(Math.random() * 60);
+
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    },
+
+    /**
+     * Get the ratio values
+     */
+    getRatio: function() {
+        const ratioSelect = document.getElementById('demo-ratio');
+
+        if (ratioSelect.value === 'custom') {
+            const positive = parseInt(document.getElementById('demo-custom-positive').value) || 4;
+            const negative = parseInt(document.getElementById('demo-custom-negative').value) || 1;
+            return { positive, negative };
+        }
+
+        const ratio = parseInt(ratioSelect.value) || 4;
+        return { positive: ratio, negative: 1 };
+    },
+
+    /**
+     * Update the preview section
+     */
+    updatePreview: function() {
+        const previewEl = document.getElementById('demo-preview');
+        if (!previewEl) return;
+
+        const startDate = document.getElementById('demo-start-date').value;
+        const endDate = document.getElementById('demo-end-date').value;
+        const minPoints = parseInt(document.getElementById('demo-min-points').value) || 15;
+        const maxPoints = parseInt(document.getElementById('demo-max-points').value) || 40;
+
+        if (!startDate || !endDate || this.students.length === 0) {
+            previewEl.classList.add('hidden');
+            return;
+        }
+
+        const weekdays = this.getWeekdays(startDate, endDate);
+        const ratio = this.getRatio();
+        const avgPoints = Math.round((minPoints + maxPoints) / 2);
+        const totalPoints = this.students.length * avgPoints;
+
+        const positiveRatio = ratio.positive / (ratio.positive + ratio.negative);
+        const positivePoints = Math.round(totalPoints * positiveRatio);
+        const negativePoints = totalPoints - positivePoints;
+
+        document.getElementById('preview-students').textContent = this.students.length;
+        document.getElementById('preview-dates').textContent = `${startDate} to ${endDate}`;
+        document.getElementById('preview-weekdays').textContent = weekdays.length;
+        document.getElementById('preview-total-points').textContent = `~${totalPoints.toLocaleString()}`;
+        document.getElementById('preview-positive').textContent = `~${positivePoints.toLocaleString()}`;
+        document.getElementById('preview-negative').textContent = `~${negativePoints.toLocaleString()}`;
+
+        previewEl.classList.remove('hidden');
+    },
+
+    /**
+     * Generate the demo script
+     */
+    generateDemoScript: function() {
+        const rosterId = document.getElementById('demo-roster-id').value.trim();
+        const locationId = document.getElementById('demo-location-id').value.trim();
+        const schoolId = document.getElementById('demo-school-id').value.trim();
+        const startDate = document.getElementById('demo-start-date').value;
+        const endDate = document.getElementById('demo-end-date').value;
+        const minPoints = parseInt(document.getElementById('demo-min-points').value) || 15;
+        const maxPoints = parseInt(document.getElementById('demo-max-points').value) || 40;
+        const ratio = this.getRatio();
+
+        // Validation
+        if (!rosterId || !locationId || !schoolId) {
+            alert('Please fill in all site configuration fields');
+            return;
+        }
+
+        if (!startDate || !endDate) {
+            alert('Please select start and end dates');
+            return;
+        }
+
+        const meritBehaviors = this.behaviors.filter(b => b.type === 'merit');
+        const demeritBehaviors = this.behaviors.filter(b => b.type === 'demerit');
+
+        if (meritBehaviors.length === 0 || demeritBehaviors.length === 0) {
+            alert('Please add at least one merit and one demerit behavior');
+            return;
+        }
+
+        const studentIds = this.students.map(s => s.id);
+        const weekdays = this.getWeekdays(startDate, endDate);
+
+        const script = this.buildDemoScript({
+            rosterId,
+            locationId,
+            schoolId,
+            studentIds,
+            meritBehaviors,
+            demeritBehaviors,
+            weekdays,
+            minPoints,
+            maxPoints,
+            ratio
+        });
+
+        // Display the script
+        const container = document.getElementById('demo-scripts-output');
+        container.innerHTML = `
+            <div class="script-block">
+                <h4>
+                    <span>Demo Data Script (${this.students.length} students, ${weekdays.length} days)</span>
+                    <div class="script-actions">
+                        <button class="copy-btn" id="copy-demo-script">Copy</button>
+                        <button class="download-btn" id="download-demo-script">Download</button>
+                    </div>
+                </h4>
+                <pre><code class="language-javascript">${this.escapeHtml(script)}</code></pre>
+            </div>
+        `;
+
+        // Bind buttons
+        document.getElementById('copy-demo-script').addEventListener('click', (e) => {
+            navigator.clipboard.writeText(script).then(() => {
+                e.target.textContent = 'Copied!';
+                e.target.classList.add('copied');
+                setTimeout(() => {
+                    e.target.textContent = 'Copy';
+                    e.target.classList.remove('copied');
+                }, 2000);
+            });
+        });
+
+        document.getElementById('download-demo-script').addEventListener('click', () => {
+            const blob = new Blob([script], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `demo_data_${schoolId}_${new Date().toISOString().split('T')[0]}.js`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        if (typeof Prism !== 'undefined') {
+            Prism.highlightAll();
+        }
+    },
+
+    /**
+     * Build the demo script content
+     */
+    buildDemoScript: function({ rosterId, locationId, schoolId, studentIds, meritBehaviors, demeritBehaviors, weekdays, minPoints, maxPoints, ratio }) {
+        const weekdayStrings = weekdays.map(d => d.toISOString().split('T')[0]);
+
+        return `/**
+ * LiveSchool Demo Data Generator
+ * Generated: ${new Date().toISOString()}
+ *
+ * Students: ${studentIds.length}
+ * Date Range: ${weekdayStrings[0]} to ${weekdayStrings[weekdayStrings.length - 1]}
+ * Weekdays: ${weekdays.length}
+ * Points per student: ${minPoints}-${maxPoints}
+ * Ratio: ${ratio.positive}:${ratio.negative} (positive:negative)
+ */
+
+const CONFIG = {
+    roster: ${rosterId},
+    location: ${locationId},
+    school: ${schoolId},
+    students: [${studentIds.join(',')}],
+    meritBehaviors: ${JSON.stringify(meritBehaviors.map(b => b.id))},
+    demeritBehaviors: ${JSON.stringify(demeritBehaviors.map(b => b.id))},
+    weekdays: ${JSON.stringify(weekdayStrings)},
+    minPoints: ${minPoints},
+    maxPoints: ${maxPoints},
+    positiveRatio: ${ratio.positive},
+    negativeRatio: ${ratio.negative},
+    batchSize: 50,
+    batchDelay: 1000,
+    retryAttempts: 3
+};
+
+// Utility functions
+function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function getRandomElement(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function getRandomSchoolTime() {
+    const minMinutes = 480; // 8:00 AM
+    const maxMinutes = 930; // 3:30 PM
+    const randomMinutes = getRandomInt(minMinutes, maxMinutes);
+    const hours = Math.floor(randomMinutes / 60);
+    const minutes = randomMinutes % 60;
+    const seconds = getRandomInt(0, 59);
+    return \`\${String(hours).padStart(2, '0')}:\${String(minutes).padStart(2, '0')}:\${String(seconds).padStart(2, '0')}\`;
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Generate all point assignments
+function generatePointAssignments() {
+    const assignments = [];
+    const totalRatio = CONFIG.positiveRatio + CONFIG.negativeRatio;
+
+    for (const studentId of CONFIG.students) {
+        const totalPoints = getRandomInt(CONFIG.minPoints, CONFIG.maxPoints);
+        const positiveCount = Math.round(totalPoints * (CONFIG.positiveRatio / totalRatio));
+        const negativeCount = totalPoints - positiveCount;
+
+        // Generate positive points
+        for (let i = 0; i < positiveCount; i++) {
+            assignments.push({
+                studentId,
+                date: getRandomElement(CONFIG.weekdays),
+                time: getRandomSchoolTime(),
+                behaviorId: getRandomElement(CONFIG.meritBehaviors),
+                type: 'merit'
+            });
+        }
+
+        // Generate negative points
+        for (let i = 0; i < negativeCount; i++) {
+            assignments.push({
+                studentId,
+                date: getRandomElement(CONFIG.weekdays),
+                time: getRandomSchoolTime(),
+                behaviorId: getRandomElement(CONFIG.demeritBehaviors),
+                type: 'demerit'
+            });
+        }
+    }
+
+    // Shuffle assignments for more realistic distribution
+    for (let i = assignments.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [assignments[i], assignments[j]] = [assignments[j], assignments[i]];
+    }
+
+    return assignments;
+}
+
+// Group assignments by date and behavior for efficient batching
+function groupAssignments(assignments) {
+    const groups = {};
+
+    for (const a of assignments) {
+        const key = \`\${a.date}|\${a.behaviorId}|\${a.type}|\${a.time.substring(0, 5)}\`; // Group by date, behavior, type, and hour:minute
+        if (!groups[key]) {
+            groups[key] = {
+                date: a.date,
+                time: a.time,
+                behaviorId: a.behaviorId,
+                type: a.type,
+                studentIds: []
+            };
+        }
+        groups[key].studentIds.push(a.studentId);
+    }
+
+    return Object.values(groups);
+}
+
+// Send a batch of students
+async function sendBatch(group, batchStudents, batchNum, totalBatches, attempt = 1) {
+    const payload = {
+        time: group.time,
+        date: group.date,
+        roster: CONFIG.roster,
+        location: CONFIG.location,
+        students: batchStudents.map(Number),
+        school: CONFIG.school,
+        behaviors: { [group.behaviorId]: { type: group.type } },
+        comment: ""
+    };
+
+    try {
+        const response = await fetch("https://api.liveschoolapp.com/v2/conducts", {
+            method: "POST",
+            headers: {
+                "accept": "application/json, text/plain, */*",
+                "content-type": "application/json"
+            },
+            credentials: "include",
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'error') {
+            if (attempt < CONFIG.retryAttempts) {
+                console.warn(\`Batch \${batchNum}/\${totalBatches} failed, retrying (attempt \${attempt + 1})...\`);
+                await sleep(2000 * attempt);
+                return sendBatch(group, batchStudents, batchNum, totalBatches, attempt + 1);
+            }
+            console.error(\`Batch \${batchNum}/\${totalBatches} FAILED after \${CONFIG.retryAttempts} attempts:\`, data.error);
+            return { success: false, count: 0, failed: batchStudents };
+        }
+
+        return { success: true, count: batchStudents.length };
+    } catch (error) {
+        if (attempt < CONFIG.retryAttempts) {
+            console.warn(\`Batch \${batchNum}/\${totalBatches} error, retrying (attempt \${attempt + 1})...\`);
+            await sleep(2000 * attempt);
+            return sendBatch(group, batchStudents, batchNum, totalBatches, attempt + 1);
+        }
+        console.error(\`Batch \${batchNum}/\${totalBatches} ERROR after \${CONFIG.retryAttempts} attempts:\`, error);
+        return { success: false, count: 0, failed: batchStudents };
+    }
+}
+
+// Main execution
+(async () => {
+    console.log('=== DEMO DATA GENERATOR ===');
+    console.log(\`Students: \${CONFIG.students.length}\`);
+    console.log(\`Date range: \${CONFIG.weekdays[0]} to \${CONFIG.weekdays[CONFIG.weekdays.length - 1]}\`);
+    console.log(\`Weekdays: \${CONFIG.weekdays.length}\`);
+    console.log(\`Points per student: \${CONFIG.minPoints}-\${CONFIG.maxPoints}\`);
+    console.log(\`Ratio: \${CONFIG.positiveRatio}:\${CONFIG.negativeRatio}\`);
+    console.log('');
+
+    console.log('Generating point assignments...');
+    const assignments = generatePointAssignments();
+    console.log(\`Total assignments: \${assignments.length}\`);
+
+    console.log('Grouping by date and behavior...');
+    const groups = groupAssignments(assignments);
+    console.log(\`Groups to process: \${groups.length}\`);
+    console.log('');
+
+    let totalSuccess = 0;
+    let totalFailed = 0;
+    let failedStudents = [];
+    let batchNum = 0;
+
+    // Calculate total batches
+    let totalBatches = 0;
+    for (const group of groups) {
+        totalBatches += Math.ceil(group.studentIds.length / CONFIG.batchSize);
+    }
+
+    console.log(\`Total batches: \${totalBatches}\`);
+    console.log('Starting...');
+    console.log('');
+
+    for (const group of groups) {
+        // Split group into batches
+        for (let i = 0; i < group.studentIds.length; i += CONFIG.batchSize) {
+            batchNum++;
+            const batchStudents = group.studentIds.slice(i, i + CONFIG.batchSize);
+
+            const result = await sendBatch(group, batchStudents, batchNum, totalBatches);
+
+            if (result.success) {
+                totalSuccess += result.count;
+                console.log(\`[Batch \${batchNum}/\${totalBatches}] \${group.date} | \${group.type} \${group.behaviorId} | \${result.count} students ✓\`);
+            } else {
+                totalFailed += batchStudents.length;
+                failedStudents = failedStudents.concat(result.failed || []);
+            }
+
+            // Delay between batches
+            if (batchNum < totalBatches) {
+                await sleep(CONFIG.batchDelay);
+            }
+        }
+    }
+
+    console.log('');
+    console.log('=== COMPLETE ===');
+    console.log(\`Successfully processed: \${totalSuccess} point assignments\`);
+
+    if (totalFailed > 0) {
+        console.warn(\`Failed: \${totalFailed} point assignments\`);
+        console.log('Failed student IDs:', [...new Set(failedStudents)]);
+    }
+
+    console.log('');
+    console.log('Demo data generation complete!');
+})();`;
+    },
+
+    /**
+     * Save demo config to localStorage
+     */
+    saveDemoConfig: function() {
+        const config = {
+            rosterId: document.getElementById('demo-roster-id').value,
+            locationId: document.getElementById('demo-location-id').value,
+            schoolId: document.getElementById('demo-school-id').value
+        };
+        localStorage.setItem('liveschool-demo-config', JSON.stringify(config));
+    },
+
+    /**
+     * Load saved demo config from localStorage
+     */
+    loadSavedDemoConfig: function() {
+        try {
+            const saved = localStorage.getItem('liveschool-demo-config');
+            if (saved) {
+                const config = JSON.parse(saved);
+                if (config.rosterId) document.getElementById('demo-roster-id').value = config.rosterId;
+                if (config.locationId) document.getElementById('demo-location-id').value = config.locationId;
+                if (config.schoolId) document.getElementById('demo-school-id').value = config.schoolId;
+            }
+        } catch (e) {
+            // Ignore errors
+        }
+    },
+
+    /**
+     * Escape HTML for safe display
+     */
+    escapeHtml: function(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+};
+
+/**
+ * Onboarding and Modals
+ */
+const Onboarding = {
+    init: function() {
+        this.bindModalEvents();
+        this.checkFirstVisit();
+    },
+
+    bindModalEvents: function() {
+        // Welcome modal
+        const closeWelcome = document.getElementById('close-welcome');
+        const startUsing = document.getElementById('start-using');
+        if (closeWelcome) closeWelcome.addEventListener('click', () => this.closeModal('welcome-modal'));
+        if (startUsing) startUsing.addEventListener('click', () => this.closeModal('welcome-modal'));
+
+        // Changelog modal
+        const showChangelog = document.getElementById('show-changelog');
+        const closeChangelog = document.getElementById('close-changelog');
+        const closeChangelogBtn = document.getElementById('close-changelog-btn');
+        if (showChangelog) showChangelog.addEventListener('click', () => this.openModal('changelog-modal'));
+        if (closeChangelog) closeChangelog.addEventListener('click', () => this.closeModal('changelog-modal'));
+        if (closeChangelogBtn) closeChangelogBtn.addEventListener('click', () => this.closeModal('changelog-modal'));
+
+        // Help button - opens welcome modal
+        const showHelp = document.getElementById('show-help');
+        if (showHelp) showHelp.addEventListener('click', () => this.openModal('welcome-modal'));
+
+        // Close modals on backdrop click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) this.closeModal(modal.id);
+            });
+        });
+
+        // Close modals on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal:not(.hidden)').forEach(modal => {
+                    this.closeModal(modal.id);
+                });
+            }
+        });
+    },
+
+    checkFirstVisit: function() {
+        const hasVisited = localStorage.getItem('liveschool-points-visited');
+        const lastVersion = localStorage.getItem('liveschool-points-version');
+        const currentVersion = '2.0.0';
+
+        if (!hasVisited) {
+            // First visit - show welcome
+            this.openModal('welcome-modal');
+            localStorage.setItem('liveschool-points-visited', 'true');
+            localStorage.setItem('liveschool-points-version', currentVersion);
+        } else if (lastVersion !== currentVersion) {
+            // Returning user, new version - show changelog
+            this.openModal('changelog-modal');
+            localStorage.setItem('liveschool-points-version', currentVersion);
+        }
+    },
+
+    openModal: function(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) modal.classList.remove('hidden');
+    },
+
+    closeModal: function(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) modal.classList.add('hidden');
+    }
+};
+
 // Initialize on DOM ready
-document.addEventListener('DOMContentLoaded', () => App.init());
+document.addEventListener('DOMContentLoaded', () => {
+    App.init();
+    DemoApp.init();
+    Onboarding.init();
+});
