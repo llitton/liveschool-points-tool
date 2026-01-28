@@ -2,10 +2,11 @@
 
 ## Overview
 
-This tool helps bulk-assign behaviors (points) to students in LiveSchool. It has two modes:
+This tool helps bulk-assign behaviors (points) to students in LiveSchool. It has three modes:
 
 1. **Assign Points Mode** - Match student names from school spreadsheets to LiveSchool IDs and generate assignment scripts
 2. **Demo Data Generator Mode** - Create randomized point history for demo/sales sites
+3. **Balance Transfer Mode** - Transfer point balances from other systems to LiveSchool
 
 **Live URL:** https://points.liveschoolhelp.com
 
@@ -45,6 +46,21 @@ Use this mode to backfill randomized point history for demo sites.
    - Positive:Negative ratio (e.g., 4:1)
 6. Click "Generate Demo Script"
 7. Copy the script and paste into LiveSchool's browser console
+
+### Balance Transfer Mode
+
+Use this mode to transfer point balances from other student management systems.
+
+1. Click "Balance Transfer" toggle at the top
+2. Upload the school's CSV file with student names and point balances
+3. Upload the LiveSchool CSV export (to get student IDs)
+4. Select which columns contain:
+   - Student names (in "FirstName LastName" format)
+   - Point amounts to transfer
+5. Click "Run Matching" to match names
+6. Review any unmatched students and select correct matches
+7. Click "Generate Script"
+8. Copy the script and paste into LiveSchool's browser console (admin.liveschoolinc.com)
 
 ## File Formats
 
@@ -465,6 +481,64 @@ Successfully processed: 4125 point assignments
 Demo data generation complete!
 ```
 
+## Balance Transfer Mode
+
+The Balance Transfer mode allows you to transfer point balances from other student management systems to LiveSchool. This is useful when schools are migrating to LiveSchool and want to preserve their students' existing point balances.
+
+### How It Works
+
+1. **Upload Source File**: Upload the school's CSV with student names and point balances
+2. **Upload LiveSchool CSV**: Upload a LiveSchool CSV export to get student IDs
+3. **Select Columns**: Choose which columns contain student names and point amounts
+4. **Review Matches**: See matched students, resolve unmatched with fuzzy suggestions
+5. **Generate Script**: Get an async script with retry logic
+
+### Input File Formats
+
+**School Balance CSV:**
+```
+studentId,grade,studentName,availablePoints
+1043136,1,Arianna Martinez,73
+1043525,1,Fabiola Murillo Martinez,59
+1043719,1,Pedro Plancarte Abarca,14
+```
+
+- `studentName`: Names in "FirstName LastName" format (last name can be multiple words)
+- `availablePoints`: The point balance to transfer
+- Other columns (studentId, grade) are ignored - we need LiveSchool IDs
+
+**LiveSchool CSV:** Standard export format (same as other modes)
+
+### Name Matching
+
+For "FirstName LastName" format where last name can be multiple words:
+- Input: "Fabiola Murillo Martinez"
+- Parsed as: firstName = "Fabiola", lastName = "Murillo Martinez"
+- Uses fuzzy matching to handle variations
+
+### Transfer API
+
+```
+POST https://admin.liveschoolinc.com/popup/transaction/add
+Content-Type: multipart/form-data
+
+Fields:
+- category: "adjustment"
+- name: "Starting Bank Balance"
+- reward: 131999 (universal reward ID)
+- amount: [point amount]
+- student: [LiveSchool student ID]
+- type: "credit"
+```
+
+### Generated Script Features
+
+- Async/await with proper delays (200ms between requests)
+- Retry logic (3 attempts with exponential backoff)
+- Progress logging: `[1/150] StudentName: 73 points ✓`
+- Error collection and retry script generation
+- Summary with success/failure counts
+
 ## Onboarding & Help
 
 The tool includes built-in onboarding for new users:
@@ -479,6 +553,13 @@ First-visit and version tracking uses localStorage keys:
 - `liveschool-points-version`: Last version user has seen
 
 ## Changelog
+
+### v2.2.0 (January 2026)
+- **New: Balance Transfer Mode** - Transfer point balances from other systems to LiveSchool
+- Upload school CSV with student names and point amounts
+- Match students using fuzzy name matching (handles "FirstName LastName" format)
+- Manual match resolution for unmatched students
+- Generates async script with retry logic for reliable transfers
 
 ### v2.1.0 (January 2026)
 - **New: Separate column support** - Now supports school files with names in separate "Last Name" and "First Name" columns

@@ -175,9 +175,15 @@ h1 {
 /* Feature Cards */
 .feature-cards {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
     margin: 1.5rem 0;
+}
+
+@media (max-width: 600px) {
+    .feature-cards {
+        grid-template-columns: 1fr;
+    }
 }
 
 .feature-card {
@@ -1467,4 +1473,71 @@ h1 {
 
 .sign-out:hover {
     color: #c53030 !important;
+}
+
+/* ============================================= */
+/* BALANCE TRANSFER MODE STYLES */
+/* ============================================= */
+
+/* Balance column selectors */
+.balance-column-selectors {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.balance-column-section {
+    background: #f7fafc;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.balance-column-section h4 {
+    margin-bottom: 0.5rem;
+    color: #2d3748;
+    font-size: 0.95rem;
+}
+
+#balance-name-column-selector,
+#balance-points-column-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+/* Points badge in unmatched items */
+.points-badge {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #2f855a;
+    background: #c6f6d5;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+}
+
+/* Total points stat card */
+.stat-card.total-points {
+    background: #f0fff4;
+    border: 1px solid #9ae6b4;
+}
+
+.stat-card.total-points .stat-icon {
+    color: #38a169;
+}
+
+/* Match stats 4 columns for balance mode */
+#balance-step-match .match-stats {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+/* Responsive for balance mode */
+@media (max-width: 768px) {
+    .balance-column-selectors {
+        grid-template-columns: 1fr;
+    }
+
+    #balance-step-match .match-stats {
+        grid-template-columns: 1fr 1fr;
+    }
 }

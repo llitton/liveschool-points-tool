@@ -225,5 +225,109 @@ const Parser = {
         }
 
         return columns;
+    },
+
+    /**
+     * Parse a balance source CSV file
+     * @param {File} file - The CSV file with student names and point balances
+     * @returns {Promise<{headers: string[], rows: Array}>}
+     */
+    parseBalanceSourceFile: function(file) {
+        return new Promise((resolve, reject) => {
+            Papa.parse(file, {
+                complete: function(results) {
+                    try {
+                        const rows = results.data;
+
+                        if (rows.length < 2) {
+                            reject(new Error('File must have at least a header row and one data row'));
+                            return;
+                        }
+
+                        // First row is headers
+                        const headers = rows[0].map(h => String(h || '').trim());
+                        const dataRows = rows.slice(1).filter(row => row && row.some(cell => cell));
+
+                        resolve({ headers, rows: dataRows });
+                    } catch (error) {
+                        reject(new Error('Failed to parse CSV: ' + error.message));
+                    }
+                },
+                error: function(error) {
+                    reject(new Error('Failed to parse CSV: ' + error.message));
+                }
+            });
+        });
+    },
+
+    /**
+     * Parse a student name in "FirstName LastName" format
+     * Where LastName can be multiple words (e.g., "Fabiola Murillo Martinez")
+     * @param {string} nameString - The name string to parse
+     * @returns {{firstName: string, lastName: string, fullName: string}}
+     */
+    parseFirstLastName: function(nameString) {
+        if (!nameString || typeof nameString !== 'string') {
+            return { firstName: '', lastName: '', fullName: '' };
+        }
+
+        const normalized = nameString.trim().toUpperCase();
+        const parts = normalized.split(/\s+/);
+
+        if (parts.length === 0) {
+            return { firstName: '', lastName: '', fullName: '' };
+        }
+
+        if (parts.length === 1) {
+            // Only one word - treat as first name
+            return {
+                firstName: parts[0],
+                lastName: '',
+                fullName: normalized
+            };
+        }
+
+        // First word is first name, rest is last name
+        const firstName = parts[0];
+        const lastName = parts.slice(1).join(' ');
+
+        return {
+            firstName,
+            lastName,
+            fullName: normalized
+        };
+    },
+
+    /**
+     * Extract balance data from parsed CSV
+     * @param {Array} rows - The data rows
+     * @param {number} nameColIndex - Index of the name column
+     * @param {number} pointsColIndex - Index of the points column
+     * @returns {Array<{originalName: string, parsedName: Object, points: number, rowIndex: number}>}
+     */
+    extractBalanceData: function(rows, nameColIndex, pointsColIndex) {
+        const students = [];
+
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const nameValue = row[nameColIndex];
+            const pointsValue = row[pointsColIndex];
+
+            if (!nameValue) continue;
+
+            const originalName = String(nameValue).trim();
+            const points = parseInt(String(pointsValue).replace(/[^0-9-]/g, ''), 10) || 0;
+
+            if (originalName) {
+                students.push({
+                    originalName,
+                    parsedName: this.parseFirstLastName(originalName),
+                    points,
+                    rowIndex: i + 1 // +1 because we skipped header
+                });
+            }
+        }
+
+        return students;
     }
 };

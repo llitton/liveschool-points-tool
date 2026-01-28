@@ -1218,7 +1218,7 @@ const DemoApp = {
     },
 
     /**
-     * Switch between assign and demo modes
+     * Switch between assign, demo, and balance modes
      */
     switchMode: function(mode) {
         this.currentMode = mode;
@@ -1231,6 +1231,7 @@ const DemoApp = {
         // Update summary bars
         document.querySelector('.assign-summary').classList.toggle('hidden', mode !== 'assign');
         document.querySelector('.demo-summary').classList.toggle('hidden', mode !== 'demo');
+        document.querySelector('.balance-summary').classList.toggle('hidden', mode !== 'balance');
 
         // Show/hide appropriate sections
         document.querySelectorAll('.assign-step').forEach(el => {
@@ -1238,6 +1239,9 @@ const DemoApp = {
         });
         document.querySelectorAll('.demo-step').forEach(el => {
             el.classList.toggle('hidden', mode !== 'demo');
+        });
+        document.querySelectorAll('.balance-step').forEach(el => {
+            el.classList.toggle('hidden', mode !== 'balance');
         });
     },
 
@@ -2180,6 +2184,743 @@ async function sendBatch(group, batchStudents, batchNum, totalBatches, attempt =
 };
 
 /**
+ * Balance Transfer Application Logic
+ */
+const BalanceApp = {
+    // State
+    sourceData: null,       // { headers, rows } from balance source CSV
+    liveSchoolStudents: [], // Students from LiveSchool CSV
+    selectedNameColumn: null,
+    selectedPointsColumn: null,
+    students: [],           // Extracted students with names and points
+    matchResults: null,     // { matched, unmatched }
+    manualMatches: {},      // Manual match overrides
+
+    /**
+     * Initialize balance transfer mode
+     */
+    init: function() {
+        this.bindEvents();
+    },
+
+    /**
+     * Bind event listeners
+     */
+    bindEvents: function() {
+        // Source file upload
+        const sourceDropzone = document.getElementById('balance-source-dropzone');
+        const sourceInput = document.getElementById('balance-source-file');
+
+        if (sourceDropzone && sourceInput) {
+            sourceDropzone.addEventListener('click', () => sourceInput.click());
+
+            sourceDropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                sourceDropzone.classList.add('dragover');
+            });
+
+            sourceDropzone.addEventListener('dragleave', () => {
+                sourceDropzone.classList.remove('dragover');
+            });
+
+            sourceDropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                sourceDropzone.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file) this.handleSourceFile(file);
+            });
+
+            sourceInput.addEventListener('change', (e) => {
+                if (e.target.files[0]) this.handleSourceFile(e.target.files[0]);
+            });
+        }
+
+        // LiveSchool file upload
+        const lsDropzone = document.getElementById('balance-liveschool-dropzone');
+        const lsInput = document.getElementById('balance-liveschool-file');
+
+        if (lsDropzone && lsInput) {
+            lsDropzone.addEventListener('click', () => lsInput.click());
+
+            lsDropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                lsDropzone.classList.add('dragover');
+            });
+
+            lsDropzone.addEventListener('dragleave', () => {
+                lsDropzone.classList.remove('dragover');
+            });
+
+            lsDropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                lsDropzone.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file) this.handleLiveSchoolFile(file);
+            });
+
+            lsInput.addEventListener('change', (e) => {
+                if (e.target.files[0]) this.handleLiveSchoolFile(e.target.files[0]);
+            });
+        }
+
+        // Column confirmation
+        const confirmColumnsBtn = document.getElementById('balance-confirm-columns');
+        if (confirmColumnsBtn) {
+            confirmColumnsBtn.addEventListener('click', () => this.confirmColumnSelection());
+        }
+
+        // Run matching
+        const runMatchingBtn = document.getElementById('balance-run-matching');
+        if (runMatchingBtn) {
+            runMatchingBtn.addEventListener('click', () => this.runMatching());
+        }
+
+        // Generate script
+        const generateBtn = document.getElementById('balance-generate-script');
+        if (generateBtn) {
+            generateBtn.addEventListener('click', () => this.generateScript());
+        }
+    },
+
+    /**
+     * Handle source balance file upload
+     */
+    handleSourceFile: async function(file) {
+        const statusEl = document.getElementById('balance-source-file-status');
+        const dropzone = document.getElementById('balance-source-dropzone');
+
+        statusEl.textContent = 'Parsing...';
+        statusEl.className = 'file-status loading';
+
+        try {
+            this.sourceData = await Parser.parseBalanceSourceFile(file);
+            statusEl.textContent = `Loaded ${this.sourceData.rows.length} rows`;
+            statusEl.className = 'file-status success';
+            dropzone.classList.add('has-file');
+
+            this.updateSummary();
+            this.checkStepsUnlock();
+        } catch (error) {
+            statusEl.textContent = 'Error: ' + error.message;
+            statusEl.className = 'file-status error';
+        }
+    },
+
+    /**
+     * Handle LiveSchool CSV file upload
+     */
+    handleLiveSchoolFile: async function(file) {
+        const statusEl = document.getElementById('balance-liveschool-file-status');
+        const dropzone = document.getElementById('balance-liveschool-dropzone');
+
+        statusEl.textContent = 'Parsing...';
+        statusEl.className = 'file-status loading';
+
+        try {
+            this.liveSchoolStudents = await Parser.parseLiveSchoolFile(file);
+            Matcher.initialize(this.liveSchoolStudents);
+
+            statusEl.textContent = `Loaded ${this.liveSchoolStudents.length} students`;
+            statusEl.className = 'file-status success';
+            dropzone.classList.add('has-file');
+
+            this.updateSummary();
+            this.checkStepsUnlock();
+        } catch (error) {
+            statusEl.textContent = 'Error: ' + error.message;
+            statusEl.className = 'file-status error';
+        }
+    },
+
+    /**
+     * Check and unlock steps based on completion
+     */
+    checkStepsUnlock: function() {
+        // Step 2 (Columns) - unlocks when both files are loaded
+        if (this.sourceData && this.liveSchoolStudents.length > 0) {
+            const columnsStep = document.getElementById('balance-step-columns');
+            columnsStep.classList.remove('locked');
+            this.showColumnSelectors();
+        }
+    },
+
+    /**
+     * Show column selectors
+     */
+    showColumnSelectors: function() {
+        if (!this.sourceData) return;
+
+        const { headers, rows } = this.sourceData;
+        const sampleRow = rows[0] || [];
+
+        // Name column selector
+        const nameContainer = document.getElementById('balance-name-column-selector');
+        nameContainer.innerHTML = '';
+
+        headers.forEach((header, idx) => {
+            const sample = String(sampleRow[idx] || '');
+            const div = document.createElement('div');
+            div.className = 'column-option';
+            div.dataset.index = idx;
+            div.innerHTML = `
+                <strong>${this.escapeHtml(header)}</strong>
+                <span class="column-preview">${this.escapeHtml(sample.substring(0, 30))}${sample.length > 30 ? '...' : ''}</span>
+            `;
+            div.addEventListener('click', () => this.selectColumn(idx, 'name'));
+            nameContainer.appendChild(div);
+        });
+
+        // Points column selector
+        const pointsContainer = document.getElementById('balance-points-column-selector');
+        pointsContainer.innerHTML = '';
+
+        headers.forEach((header, idx) => {
+            const sample = String(sampleRow[idx] || '');
+            const div = document.createElement('div');
+            div.className = 'column-option';
+            div.dataset.index = idx;
+            div.innerHTML = `
+                <strong>${this.escapeHtml(header)}</strong>
+                <span class="column-preview">${this.escapeHtml(sample.substring(0, 30))}${sample.length > 30 ? '...' : ''}</span>
+            `;
+            div.addEventListener('click', () => this.selectColumn(idx, 'points'));
+            pointsContainer.appendChild(div);
+        });
+
+        // Auto-select columns that look like name and points
+        const headerLower = headers.map(h => h.toLowerCase());
+
+        // Try to find name column
+        for (let i = 0; i < headers.length; i++) {
+            if (headerLower[i].includes('name') && !headerLower[i].includes('first') && !headerLower[i].includes('last')) {
+                this.selectColumn(i, 'name');
+                break;
+            }
+        }
+
+        // Try to find points column
+        for (let i = 0; i < headers.length; i++) {
+            if (headerLower[i].includes('point') || headerLower[i].includes('balance') || headerLower[i].includes('amount')) {
+                this.selectColumn(i, 'points');
+                break;
+            }
+        }
+    },
+
+    /**
+     * Select a column
+     */
+    selectColumn: function(index, type) {
+        if (type === 'name') {
+            this.selectedNameColumn = index;
+            document.querySelectorAll('#balance-name-column-selector .column-option').forEach((el, idx) => {
+                el.classList.toggle('selected', idx === index);
+            });
+        } else if (type === 'points') {
+            this.selectedPointsColumn = index;
+            document.querySelectorAll('#balance-points-column-selector .column-option').forEach((el, idx) => {
+                el.classList.toggle('selected', idx === index);
+            });
+        }
+    },
+
+    /**
+     * Confirm column selection and proceed
+     */
+    confirmColumnSelection: function() {
+        if (this.selectedNameColumn === null) {
+            alert('Please select the column containing student names.');
+            return;
+        }
+        if (this.selectedPointsColumn === null) {
+            alert('Please select the column containing point amounts.');
+            return;
+        }
+        if (this.selectedNameColumn === this.selectedPointsColumn) {
+            alert('Name and Points columns must be different.');
+            return;
+        }
+
+        // Extract student data
+        this.students = Parser.extractBalanceData(
+            this.sourceData.rows,
+            this.selectedNameColumn,
+            this.selectedPointsColumn
+        );
+
+        // Unlock matching step
+        const matchStep = document.getElementById('balance-step-match');
+        matchStep.classList.remove('locked');
+
+        this.updateSummary();
+    },
+
+    /**
+     * Run the matching process
+     */
+    runMatching: function() {
+        const btn = document.getElementById('balance-run-matching');
+        const btnText = btn.querySelector('.btn-text');
+        const btnSpinner = btn.querySelector('.btn-spinner');
+
+        // Show loading state
+        btnText.textContent = 'Matching...';
+        btnSpinner.classList.remove('hidden');
+        btn.disabled = true;
+
+        // Use setTimeout to allow UI to update
+        setTimeout(() => {
+            this.matchResults = Matcher.matchAllStudents(this.students);
+            this.manualMatches = {};
+
+            const totalMatched = this.matchResults.matched.length;
+            const totalUnmatched = this.matchResults.unmatched.length;
+            const total = totalMatched + totalUnmatched;
+            const percentage = total > 0 ? Math.round((totalMatched / total) * 100) : 0;
+
+            // Calculate total points for matched students
+            let totalPoints = 0;
+            for (const match of this.matchResults.matched) {
+                const student = this.students.find(s => s.originalName === match.originalName);
+                if (student) {
+                    totalPoints += student.points;
+                }
+            }
+
+            // Update UI
+            document.getElementById('balance-matched-count').textContent = totalMatched;
+            document.getElementById('balance-unmatched-count').textContent = totalUnmatched;
+            document.getElementById('balance-match-percentage').textContent = percentage + '%';
+            document.getElementById('balance-total-points').textContent = totalPoints.toLocaleString();
+
+            // Traffic light indicator
+            const indicator = document.getElementById('balance-match-indicator');
+            indicator.classList.remove('green', 'yellow', 'red');
+            if (percentage >= 95) {
+                indicator.classList.add('green');
+            } else if (percentage >= 80) {
+                indicator.classList.add('yellow');
+            } else {
+                indicator.classList.add('red');
+            }
+
+            document.getElementById('balance-match-summary').classList.remove('hidden');
+
+            // Show unmatched items if any
+            if (totalUnmatched > 0) {
+                this.showUnmatchedItems();
+            } else {
+                document.getElementById('balance-unmatched-list').classList.add('hidden');
+            }
+
+            // Unlock generate step
+            const generateStep = document.getElementById('balance-step-generate');
+            generateStep.classList.remove('locked');
+
+            this.updateSummary();
+
+            // Reset button
+            btnText.textContent = 'Run Matching';
+            btnSpinner.classList.add('hidden');
+            btn.disabled = false;
+        }, 100);
+    },
+
+    /**
+     * Show unmatched items for manual resolution
+     */
+    showUnmatchedItems: function() {
+        const container = document.getElementById('balance-unmatched-items');
+        container.innerHTML = '';
+
+        const allStudents = Matcher.getAllStudentsForDropdown();
+
+        for (const unmatched of this.matchResults.unmatched) {
+            // Find the student's points
+            const student = this.students.find(s => s.originalName === unmatched.originalName);
+            const points = student ? student.points : 0;
+
+            const div = document.createElement('div');
+            div.className = 'unmatched-item';
+            div.dataset.originalName = unmatched.originalName;
+
+            // Build dropdown options
+            let optionsHtml = '<option value="">-- No match (skip) --</option>';
+
+            // Add suggestions first
+            if (unmatched.suggestions && unmatched.suggestions.length > 0) {
+                optionsHtml += '<optgroup label="Suggestions">';
+                for (const suggestion of unmatched.suggestions) {
+                    const s = suggestion.student;
+                    optionsHtml += `<option value="${s.id}">${s.lastName}, ${s.firstName} (${suggestion.confidence}% match)</option>`;
+                }
+                optionsHtml += '</optgroup>';
+            }
+
+            // Add all students
+            optionsHtml += '<optgroup label="All Students">';
+            for (const student of allStudents) {
+                optionsHtml += `<option value="${student.id}">${student.displayName}</option>`;
+            }
+            optionsHtml += '</optgroup>';
+
+            div.innerHTML = `
+                <div class="original-name">${this.escapeHtml(unmatched.originalName)}</div>
+                <div class="points-badge">${points} pts</div>
+                <select class="manual-match-select">${optionsHtml}</select>
+            `;
+
+            // Bind change event
+            div.querySelector('select').addEventListener('change', (e) => {
+                const studentId = e.target.value;
+                const key = unmatched.originalName;
+
+                if (studentId) {
+                    this.manualMatches[key] = studentId;
+                    div.classList.add('resolved');
+                } else {
+                    delete this.manualMatches[key];
+                    div.classList.remove('resolved');
+                }
+
+                this.updateTotalPoints();
+            });
+
+            container.appendChild(div);
+        }
+
+        document.getElementById('balance-unmatched-list').classList.remove('hidden');
+    },
+
+    /**
+     * Update total points display
+     */
+    updateTotalPoints: function() {
+        let totalPoints = 0;
+
+        // Add points from matched students
+        for (const match of this.matchResults.matched) {
+            const student = this.students.find(s => s.originalName === match.originalName);
+            if (student) {
+                totalPoints += student.points;
+            }
+        }
+
+        // Add points from manually matched students
+        for (const originalName of Object.keys(this.manualMatches)) {
+            const student = this.students.find(s => s.originalName === originalName);
+            if (student) {
+                totalPoints += student.points;
+            }
+        }
+
+        document.getElementById('balance-total-points').textContent = totalPoints.toLocaleString();
+    },
+
+    /**
+     * Generate the transfer script
+     */
+    generateScript: function() {
+        // Collect all student transfers
+        const transfers = [];
+
+        // Add matched students
+        for (const match of this.matchResults.matched) {
+            const student = this.students.find(s => s.originalName === match.originalName);
+            if (student && student.points > 0) {
+                transfers.push({
+                    studentId: match.match.id,
+                    name: match.originalName,
+                    amount: student.points
+                });
+            }
+        }
+
+        // Add manually matched students
+        for (const originalName of Object.keys(this.manualMatches)) {
+            const studentId = this.manualMatches[originalName];
+            const student = this.students.find(s => s.originalName === originalName);
+            if (student && student.points > 0) {
+                transfers.push({
+                    studentId: studentId,
+                    name: originalName,
+                    amount: student.points
+                });
+            }
+        }
+
+        if (transfers.length === 0) {
+            alert('No students to transfer points to. Make sure students are matched and have points > 0.');
+            return;
+        }
+
+        const script = this.buildTransferScript(transfers);
+
+        // Display the script
+        const container = document.getElementById('balance-scripts-output');
+        container.innerHTML = `
+            <div class="script-block">
+                <h4>
+                    <span>Balance Transfer Script (${transfers.length} students, ${transfers.reduce((sum, t) => sum + t.amount, 0).toLocaleString()} total points)</span>
+                    <div class="script-actions">
+                        <button class="copy-btn" id="copy-balance-script">Copy</button>
+                        <button class="download-btn" id="download-balance-script">Download</button>
+                    </div>
+                </h4>
+                <pre><code class="language-javascript">${this.escapeHtml(script)}</code></pre>
+            </div>
+        `;
+
+        // Bind buttons
+        document.getElementById('copy-balance-script').addEventListener('click', (e) => {
+            navigator.clipboard.writeText(script).then(() => {
+                e.target.textContent = 'Copied!';
+                e.target.classList.add('copied');
+                setTimeout(() => {
+                    e.target.textContent = 'Copy';
+                    e.target.classList.remove('copied');
+                }, 2000);
+            });
+        });
+
+        document.getElementById('download-balance-script').addEventListener('click', () => {
+            const blob = new Blob([script], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `balance_transfer_${new Date().toISOString().split('T')[0]}.js`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        if (typeof Prism !== 'undefined') {
+            Prism.highlightAll();
+        }
+    },
+
+    /**
+     * Build the transfer script content
+     */
+    buildTransferScript: function(transfers) {
+        const transfersJson = JSON.stringify(transfers, null, 2);
+
+        return `/**
+ * LiveSchool Balance Transfer Script
+ * Generated: ${new Date().toISOString()}
+ *
+ * Students: ${transfers.length}
+ * Total Points: ${transfers.reduce((sum, t) => sum + t.amount, 0).toLocaleString()}
+ */
+
+const TRANSFERS = ${transfersJson};
+
+const BATCH_DELAY = 200; // Delay between requests in ms
+const RETRY_ATTEMPTS = 3;
+
+async function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function transferPoints(studentId, amount, name, attempt = 1) {
+    const formData = \`--xyzboundary
+Content-Disposition: form-data; name="category"
+
+adjustment
+--xyzboundary
+Content-Disposition: form-data; name="name"
+
+Starting Bank Balance
+--xyzboundary
+Content-Disposition: form-data; name="reward"
+
+131999
+--xyzboundary
+Content-Disposition: form-data; name="amount"
+
+\${amount}
+--xyzboundary
+Content-Disposition: form-data; name="student"
+
+\${studentId}
+--xyzboundary
+Content-Disposition: form-data; name="type"
+
+credit
+--xyzboundary--
+\`;
+
+    try {
+        const response = await fetch("https://admin.liveschoolinc.com/popup/transaction/add", {
+            method: "POST",
+            headers: {
+                "Content-Type": "multipart/form-data; boundary=xyzboundary"
+            },
+            credentials: "include",
+            body: formData
+        });
+
+        if (response.ok) {
+            return { success: true };
+        } else {
+            if (attempt < RETRY_ATTEMPTS) {
+                console.warn(\`Retry \${attempt + 1} for \${name} (ID: \${studentId})...\`);
+                await sleep(1000 * attempt);
+                return transferPoints(studentId, amount, name, attempt + 1);
+            }
+            console.error(\`FAILED: \${name} (ID: \${studentId}) - HTTP \${response.status}\`);
+            return { success: false, studentId, name, amount };
+        }
+    } catch (error) {
+        if (attempt < RETRY_ATTEMPTS) {
+            console.warn(\`Retry \${attempt + 1} for \${name} (ID: \${studentId})...\`);
+            await sleep(1000 * attempt);
+            return transferPoints(studentId, amount, name, attempt + 1);
+        }
+        console.error(\`FAILED: \${name} (ID: \${studentId}) - \${error.message}\`);
+        return { success: false, studentId, name, amount };
+    }
+}
+
+(async () => {
+    console.log('=== BALANCE TRANSFER ===');
+    console.log(\`Processing \${TRANSFERS.length} students...\`);
+    console.log('');
+
+    let successCount = 0;
+    let failedTransfers = [];
+
+    for (let i = 0; i < TRANSFERS.length; i++) {
+        const t = TRANSFERS[i];
+        const result = await transferPoints(t.studentId, t.amount, t.name);
+
+        if (result.success) {
+            successCount++;
+            console.log(\`[\${i + 1}/\${TRANSFERS.length}] \${t.name}: \${t.amount} points ✓\`);
+        } else {
+            failedTransfers.push(result);
+        }
+
+        // Delay between requests
+        if (i < TRANSFERS.length - 1) {
+            await sleep(BATCH_DELAY);
+        }
+    }
+
+    console.log('');
+    console.log('=== COMPLETE ===');
+    console.log(\`Successfully transferred: \${successCount}/\${TRANSFERS.length} students\`);
+
+    if (failedTransfers.length > 0) {
+        console.warn(\`Failed: \${failedTransfers.length} students\`);
+        console.log('Failed transfers:', failedTransfers);
+
+        // Generate retry script
+        const retryScript = \`
+// ========== RETRY SCRIPT FOR FAILED TRANSFERS ==========
+const RETRY_TRANSFERS = \${JSON.stringify(failedTransfers.map(f => ({ studentId: f.studentId, name: f.name, amount: f.amount })), null, 2)};
+
+(async () => {
+    for (let i = 0; i < RETRY_TRANSFERS.length; i++) {
+        const t = RETRY_TRANSFERS[i];
+        const formData = \\\`--xyzboundary
+Content-Disposition: form-data; name="category"
+
+adjustment
+--xyzboundary
+Content-Disposition: form-data; name="name"
+
+Starting Bank Balance
+--xyzboundary
+Content-Disposition: form-data; name="reward"
+
+131999
+--xyzboundary
+Content-Disposition: form-data; name="amount"
+
+\\\${t.amount}
+--xyzboundary
+Content-Disposition: form-data; name="student"
+
+\\\${t.studentId}
+--xyzboundary
+Content-Disposition: form-data; name="type"
+
+credit
+--xyzboundary--
+\\\`;
+        try {
+            const response = await fetch("https://admin.liveschoolinc.com/popup/transaction/add", {
+                method: "POST",
+                headers: { "Content-Type": "multipart/form-data; boundary=xyzboundary" },
+                credentials: "include",
+                body: formData
+            });
+            if (response.ok) {
+                console.log(\\\`[\\\${i + 1}/\\\${RETRY_TRANSFERS.length}] \\\${t.name}: \\\${t.amount} points ✓\\\`);
+            } else {
+                console.error(\\\`FAILED: \\\${t.name} - HTTP \\\${response.status}\\\`);
+            }
+        } catch (e) {
+            console.error(\\\`FAILED: \\\${t.name} - \\\${e.message}\\\`);
+        }
+        if (i < RETRY_TRANSFERS.length - 1) await new Promise(r => setTimeout(r, 500));
+    }
+    console.log('Retry complete!');
+})();
+// ========== END RETRY SCRIPT ==========
+\`;
+        console.log(retryScript);
+    }
+
+    console.log('');
+    console.log('Balance transfer complete!');
+})();`;
+    },
+
+    /**
+     * Update summary bar
+     */
+    updateSummary: function() {
+        // Source file
+        const sourceSummary = document.getElementById('balance-summary-source');
+        if (this.sourceData) {
+            sourceSummary.querySelector('.summary-icon').textContent = '✓';
+            sourceSummary.querySelector('.summary-icon').classList.add('complete');
+            sourceSummary.querySelector('.summary-label').textContent = `${this.sourceData.rows.length} rows`;
+        }
+
+        // LiveSchool file
+        const lsSummary = document.getElementById('balance-summary-liveschool');
+        if (this.liveSchoolStudents.length > 0) {
+            lsSummary.querySelector('.summary-icon').textContent = '✓';
+            lsSummary.querySelector('.summary-icon').classList.add('complete');
+            lsSummary.querySelector('.summary-label').textContent = `${this.liveSchoolStudents.length} students`;
+        }
+
+        // Matched
+        const matchedSummary = document.getElementById('balance-summary-matched');
+        if (this.matchResults) {
+            const matched = this.matchResults.matched.length + Object.keys(this.manualMatches).length;
+            const total = this.students.length;
+            matchedSummary.querySelector('.summary-icon').textContent = '✓';
+            matchedSummary.querySelector('.summary-icon').classList.add('complete');
+            matchedSummary.querySelector('.summary-label').textContent = `${matched}/${total}`;
+        }
+    },
+
+    /**
+     * Escape HTML for safe display
+     */
+    escapeHtml: function(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+};
+
+/**
  * Onboarding and Modals
  */
 const Onboarding = {
@@ -2227,7 +2968,7 @@ const Onboarding = {
     checkFirstVisit: function() {
         const hasVisited = localStorage.getItem('liveschool-points-visited');
         const lastVersion = localStorage.getItem('liveschool-points-version');
-        const currentVersion = '2.1.0';
+        const currentVersion = '2.2.0';
 
         if (!hasVisited) {
             // First visit - show welcome
@@ -2260,5 +3001,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize app modules (they're hidden until auth succeeds)
     App.init();
     DemoApp.init();
+    BalanceApp.init();
     Onboarding.init();
 });

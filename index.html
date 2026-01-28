@@ -60,6 +60,11 @@
                         <h4>Demo Data Generator</h4>
                         <p>Create randomized point history for demo sites with configurable ratios and date ranges.</p>
                     </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">💰</div>
+                        <h4>Balance Transfer</h4>
+                        <p>Transfer point balances from other systems to LiveSchool by matching student names to IDs.</p>
+                    </div>
                 </div>
 
                 <div class="getting-started">
@@ -85,6 +90,16 @@
                 <button class="modal-close" id="close-changelog">&times;</button>
             </div>
             <div class="modal-body changelog-body">
+                <div class="changelog-entry">
+                    <div class="changelog-version">v2.2.0 <span class="changelog-date">January 2026</span></div>
+                    <ul>
+                        <li><strong>New: Balance Transfer Mode</strong> - Transfer point balances from other systems to LiveSchool</li>
+                        <li>Upload school CSV with student names and point amounts</li>
+                        <li>Match students using fuzzy name matching (handles "FirstName LastName" format)</li>
+                        <li>Manual match resolution for unmatched students</li>
+                        <li>Generates async script with retry logic for reliable transfers</li>
+                    </ul>
+                </div>
                 <div class="changelog-entry">
                     <div class="changelog-version">v2.1.0 <span class="changelog-date">January 2026</span></div>
                     <ul>
@@ -165,6 +180,21 @@
                 <span class="summary-label">Settings</span>
             </div>
         </div>
+        <!-- Balance Transfer Mode Summary -->
+        <div class="summary-content balance-summary hidden">
+            <div class="summary-item" id="balance-summary-source">
+                <span class="summary-icon">○</span>
+                <span class="summary-label">Source File</span>
+            </div>
+            <div class="summary-item" id="balance-summary-liveschool">
+                <span class="summary-icon">○</span>
+                <span class="summary-label">LiveSchool CSV</span>
+            </div>
+            <div class="summary-item" id="balance-summary-matched">
+                <span class="summary-icon">○</span>
+                <span class="summary-label">Matched</span>
+            </div>
+        </div>
     </div>
 
     <div class="container">
@@ -186,6 +216,7 @@
             <div class="mode-toggle">
                 <button class="mode-btn active" data-mode="assign">Assign Points</button>
                 <button class="mode-btn" data-mode="demo">Demo Data Generator</button>
+                <button class="mode-btn" data-mode="balance">Balance Transfer</button>
             </div>
         </header>
 
@@ -598,6 +629,128 @@
                     <div class="empty-state">
                         <div class="empty-icon">📝</div>
                         <p>Your demo script will appear here once generated</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================= -->
+        <!-- BALANCE TRANSFER MODE SECTIONS (hidden by default) -->
+        <!-- ============================================= -->
+
+        <!-- Balance Step 1: Upload Files -->
+        <section class="step balance-step hidden" id="balance-step-upload">
+            <div class="step-header">
+                <h2><span class="step-badge">1</span> Upload Files</h2>
+            </div>
+            <div class="step-content">
+                <p class="step-description">Upload the school's balance file and the LiveSchool CSV export to match students.</p>
+                <div class="upload-grid">
+                    <div class="upload-box" id="balance-source-dropzone">
+                        <div class="dropzone-content">
+                            <div class="upload-icon">📄</div>
+                            <label for="balance-source-file">School Balance File (CSV)</label>
+                            <input type="file" id="balance-source-file" accept=".csv">
+                            <p class="upload-hint">Drag & drop or click to select</p>
+                            <p class="upload-desc">File with student names and point balances</p>
+                        </div>
+                        <div id="balance-source-file-status" class="file-status"></div>
+                    </div>
+                    <div class="upload-box" id="balance-liveschool-dropzone">
+                        <div class="dropzone-content">
+                            <div class="upload-icon">📊</div>
+                            <label for="balance-liveschool-file">LiveSchool CSV Export</label>
+                            <input type="file" id="balance-liveschool-file" accept=".csv">
+                            <p class="upload-hint">Drag & drop or click to select</p>
+                            <p class="upload-desc">Export from LiveSchool with student IDs</p>
+                        </div>
+                        <div id="balance-liveschool-file-status" class="file-status"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Balance Step 2: Column Selection -->
+        <section class="step balance-step hidden locked" id="balance-step-columns">
+            <div class="step-header">
+                <h2><span class="step-badge">2</span> Select Columns</h2>
+                <span class="lock-icon">🔒</span>
+            </div>
+            <div class="step-content">
+                <p>Select which columns contain the student names and point amounts.</p>
+
+                <div class="balance-column-selectors">
+                    <div class="balance-column-section">
+                        <h4>Student Name Column:</h4>
+                        <p class="hint">Select the column with names in "FirstName LastName" format</p>
+                        <div id="balance-name-column-selector"></div>
+                    </div>
+                    <div class="balance-column-section">
+                        <h4>Points Column:</h4>
+                        <p class="hint">Select the column with the point balance to transfer</p>
+                        <div id="balance-points-column-selector"></div>
+                    </div>
+                </div>
+
+                <button id="balance-confirm-columns" class="btn primary">Confirm Column Selection</button>
+            </div>
+        </section>
+
+        <!-- Balance Step 3: Review Matches -->
+        <section class="step balance-step hidden locked" id="balance-step-match">
+            <div class="step-header">
+                <h2><span class="step-badge">3</span> Review Matches</h2>
+                <span class="lock-icon">🔒</span>
+            </div>
+            <div class="step-content">
+                <button id="balance-run-matching" class="btn primary">
+                    <span class="btn-text">Run Matching</span>
+                    <span class="btn-spinner hidden"></span>
+                </button>
+                <div id="balance-match-summary" class="hidden">
+                    <div class="match-stats">
+                        <div class="stat-card matched">
+                            <div class="stat-icon">✓</div>
+                            <div class="stat-number" id="balance-matched-count">0</div>
+                            <div class="stat-label">Matched</div>
+                        </div>
+                        <div class="stat-card unmatched">
+                            <div class="stat-icon">⚠</div>
+                            <div class="stat-number" id="balance-unmatched-count">0</div>
+                            <div class="stat-label">Unmatched</div>
+                        </div>
+                        <div class="stat-card percentage">
+                            <div class="stat-icon" id="balance-match-indicator">●</div>
+                            <div class="stat-number" id="balance-match-percentage">0%</div>
+                            <div class="stat-label">Match Rate</div>
+                        </div>
+                        <div class="stat-card total-points">
+                            <div class="stat-icon">💰</div>
+                            <div class="stat-number" id="balance-total-points">0</div>
+                            <div class="stat-label">Total Points</div>
+                        </div>
+                    </div>
+                </div>
+                <div id="balance-unmatched-list" class="hidden">
+                    <h3>Unmatched Students</h3>
+                    <p class="hint">Select the correct match from the dropdown, or leave as "No match" to skip.</p>
+                    <div id="balance-unmatched-items"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Balance Step 4: Generate Script -->
+        <section class="step balance-step hidden locked" id="balance-step-generate">
+            <div class="step-header">
+                <h2><span class="step-badge">4</span> Generate Transfer Script</h2>
+                <span class="lock-icon">🔒</span>
+            </div>
+            <div class="step-content">
+                <button id="balance-generate-script" class="btn primary">Generate Script</button>
+                <div id="balance-scripts-output">
+                    <div class="empty-state">
+                        <div class="empty-icon">📝</div>
+                        <p>Your transfer script will appear here once generated</p>
                     </div>
                 </div>
             </div>
