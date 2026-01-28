@@ -137,7 +137,7 @@ const Parser = {
     },
 
     /**
-     * Extract students from a sheet based on the name column
+     * Extract students from a sheet based on a combined name column
      * @param {Array} sheetData - 2D array of sheet data
      * @param {number} nameColumnIndex - Index of the name column
      * @returns {Array<{originalName: string, parsedName: Object, rowIndex: number}>}
@@ -154,6 +154,45 @@ const Parser = {
                     students.push({
                         originalName,
                         parsedName: this.parseStudentName(originalName),
+                        rowIndex: i
+                    });
+                }
+            }
+        }
+
+        return students;
+    },
+
+    /**
+     * Extract students from a sheet based on separate last name and first name columns
+     * @param {Array} sheetData - 2D array of sheet data
+     * @param {number} lastNameColumnIndex - Index of the last name column
+     * @param {number} firstNameColumnIndex - Index of the first name column
+     * @returns {Array<{originalName: string, parsedName: Object, rowIndex: number}>}
+     */
+    extractStudentsFromSeparateColumns: function(sheetData, lastNameColumnIndex, firstNameColumnIndex) {
+        const students = [];
+
+        // Skip header row (row 0)
+        for (let i = 1; i < sheetData.length; i++) {
+            const row = sheetData[i];
+            if (row) {
+                const lastName = String(row[lastNameColumnIndex] || '').trim().toUpperCase();
+                const firstName = String(row[firstNameColumnIndex] || '').trim().toUpperCase();
+
+                if (lastName || firstName) {
+                    // Create original name in "LASTNAME, FIRSTNAME" format for display
+                    const originalName = lastName && firstName
+                        ? `${lastName}, ${firstName}`
+                        : (lastName || firstName);
+
+                    students.push({
+                        originalName,
+                        parsedName: {
+                            lastName,
+                            firstName,
+                            fullName: originalName
+                        },
                         rowIndex: i
                     });
                 }

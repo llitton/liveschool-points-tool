@@ -16,8 +16,29 @@
     <!-- Prism.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
+    <!-- Login Screen (shown until authenticated) -->
+    <div id="login-screen" class="login-screen">
+        <div class="login-container">
+            <div class="login-header">
+                <h1>LiveSchool Points Tool</h1>
+                <p>Internal tool for LiveSchool staff</p>
+            </div>
+            <div class="login-body">
+                <p>Please sign in with your LiveSchool Google account to continue.</p>
+                <div id="google-signin-btn"></div>
+                <p class="login-hint">Only @liveschoolinc.com accounts are allowed</p>
+            </div>
+            <div id="login-error" class="login-error hidden"></div>
+        </div>
+    </div>
+
+    <!-- Main App Container (hidden until authenticated) -->
+    <div id="app-container" class="hidden">
+
     <!-- Welcome Modal (shows on first visit) -->
     <div id="welcome-modal" class="modal hidden">
         <div class="modal-content">
@@ -64,6 +85,14 @@
                 <button class="modal-close" id="close-changelog">&times;</button>
             </div>
             <div class="modal-body changelog-body">
+                <div class="changelog-entry">
+                    <div class="changelog-version">v2.1.0 <span class="changelog-date">January 2026</span></div>
+                    <ul>
+                        <li><strong>New: Separate column support</strong> - Now supports school files with names in separate "Last Name" and "First Name" columns</li>
+                        <li>Choose between "Combined column" or "Separate columns" when selecting name columns</li>
+                        <li>Auto-detects column headers in separate column mode</li>
+                    </ul>
+                </div>
                 <div class="changelog-entry">
                     <div class="changelog-version">v2.0.0 <span class="changelog-date">January 2026</span></div>
                     <ul>
@@ -146,8 +175,10 @@
                     <p class="subtitle">Match student names and generate behavior scripts</p>
                 </div>
                 <div class="header-actions">
+                    <span id="user-email" class="user-email"></span>
                     <button id="show-changelog" class="btn-link">What's New</button>
                     <button id="show-help" class="btn-link">Help</button>
+                    <button id="sign-out-btn" class="btn-link sign-out">Sign Out</button>
                 </div>
             </div>
 
@@ -225,12 +256,43 @@
         <!-- Step 2: Column Mapping -->
         <section class="step assign-step locked" id="step-columns" data-step="2">
             <div class="step-header">
-                <h2><span class="step-badge">2</span> Select Name Column</h2>
+                <h2><span class="step-badge">2</span> Select Name Column(s)</h2>
                 <span class="lock-icon">🔒</span>
             </div>
             <div class="step-content">
-                <p>Which column contains the student names in the school's file?</p>
-                <div id="column-selector"></div>
+                <p>How are student names formatted in the school's file?</p>
+
+                <div class="column-mode-selector">
+                    <label class="column-mode-option">
+                        <input type="radio" name="column-mode" value="combined" checked>
+                        <span class="mode-label">Combined column</span>
+                        <span class="mode-desc">"Last Name, First Name" in one column</span>
+                    </label>
+                    <label class="column-mode-option">
+                        <input type="radio" name="column-mode" value="separate">
+                        <span class="mode-label">Separate columns</span>
+                        <span class="mode-desc">Last Name and First Name in different columns</span>
+                    </label>
+                </div>
+
+                <div id="combined-column-selector" class="column-selector-group">
+                    <h4>Select the name column:</h4>
+                    <div id="column-selector"></div>
+                </div>
+
+                <div id="separate-column-selector" class="column-selector-group hidden">
+                    <div class="separate-column-row">
+                        <div class="separate-column-section">
+                            <h4>Select the Last Name column:</h4>
+                            <div id="last-name-column-selector"></div>
+                        </div>
+                        <div class="separate-column-section">
+                            <h4>Select the First Name column:</h4>
+                            <div id="first-name-column-selector"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <button id="confirm-column" class="btn primary">Confirm Column Selection</button>
             </div>
         </section>
@@ -541,6 +603,8 @@
             </div>
         </section>
     </div>
+
+    </div><!-- End app-container -->
 
     <script src="js/parser.js"></script>
     <script src="js/matcher.js"></script>

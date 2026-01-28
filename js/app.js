@@ -1,4 +1,187 @@
 /**
+ * Google Authentication Module
+ */
+const Auth = {
+    // Configuration
+    GOOGLE_CLIENT_ID: '931352700202-p5jilug2454vrapq784jasc7gjkjlgiv.apps.googleusercontent.com',
+    ALLOWED_DOMAIN: 'liveschoolinc.com',
+
+    /**
+     * Initialize authentication
+     */
+    init: function() {
+        // Check for existing session
+        const savedUser = this.getSavedUser();
+        if (savedUser) {
+            this.showApp(savedUser);
+            return;
+        }
+
+        // Wait for Google Identity Services to load
+        if (typeof google !== 'undefined' && google.accounts) {
+            this.initGoogleSignIn();
+        } else {
+            // Retry after a short delay if GIS isn't loaded yet
+            setTimeout(() => this.init(), 100);
+        }
+    },
+
+    /**
+     * Initialize Google Sign-In button
+     */
+    initGoogleSignIn: function() {
+        google.accounts.id.initialize({
+            client_id: this.GOOGLE_CLIENT_ID,
+            callback: (response) => this.handleCredentialResponse(response),
+            auto_select: false,
+            cancel_on_tap_outside: true
+        });
+
+        google.accounts.id.renderButton(
+            document.getElementById('google-signin-btn'),
+            {
+                theme: 'outline',
+                size: 'large',
+                type: 'standard',
+                text: 'signin_with',
+                shape: 'rectangular',
+                logo_alignment: 'left',
+                width: 280
+            }
+        );
+    },
+
+    /**
+     * Handle the credential response from Google
+     */
+    handleCredentialResponse: function(response) {
+        const credential = response.credential;
+        const payload = this.parseJwt(credential);
+
+        if (!payload) {
+            this.showError('Failed to parse authentication response');
+            return;
+        }
+
+        const email = payload.email;
+        const domain = email.split('@')[1];
+
+        if (domain !== this.ALLOWED_DOMAIN) {
+            this.showError(`Access denied. Only @${this.ALLOWED_DOMAIN} accounts are allowed.`);
+            return;
+        }
+
+        // Save user info and show app
+        const user = {
+            email: email,
+            name: payload.name,
+            picture: payload.picture,
+            exp: payload.exp
+        };
+
+        this.saveUser(user);
+        this.showApp(user);
+    },
+
+    /**
+     * Parse JWT token
+     */
+    parseJwt: function(token) {
+        try {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(
+                atob(base64)
+                    .split('')
+                    .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                    .join('')
+            );
+            return JSON.parse(jsonPayload);
+        } catch (e) {
+            console.error('Failed to parse JWT:', e);
+            return null;
+        }
+    },
+
+    /**
+     * Save user to sessionStorage
+     */
+    saveUser: function(user) {
+        sessionStorage.setItem('liveschool-points-user', JSON.stringify(user));
+    },
+
+    /**
+     * Get saved user from sessionStorage
+     */
+    getSavedUser: function() {
+        try {
+            const saved = sessionStorage.getItem('liveschool-points-user');
+            if (!saved) return null;
+
+            const user = JSON.parse(saved);
+
+            // Check if token is expired
+            if (user.exp && user.exp * 1000 < Date.now()) {
+                this.clearUser();
+                return null;
+            }
+
+            return user;
+        } catch (e) {
+            return null;
+        }
+    },
+
+    /**
+     * Clear saved user
+     */
+    clearUser: function() {
+        sessionStorage.removeItem('liveschool-points-user');
+    },
+
+    /**
+     * Show error message
+     */
+    showError: function(message) {
+        const errorEl = document.getElementById('login-error');
+        errorEl.textContent = message;
+        errorEl.classList.remove('hidden');
+    },
+
+    /**
+     * Show the main app
+     */
+    showApp: function(user) {
+        // Hide login screen
+        document.getElementById('login-screen').classList.add('hidden');
+
+        // Show app container
+        document.getElementById('app-container').classList.remove('hidden');
+
+        // Display user email
+        document.getElementById('user-email').textContent = user.email;
+
+        // Bind sign out
+        document.getElementById('sign-out-btn').addEventListener('click', () => this.signOut());
+    },
+
+    /**
+     * Sign out
+     */
+    signOut: function() {
+        this.clearUser();
+
+        // Revoke Google credentials if available
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+            google.accounts.id.disableAutoSelect();
+        }
+
+        // Reload the page to show login screen
+        window.location.reload();
+    }
+};
+
+/**
  * Main Application Logic
  */
 
@@ -7,6 +190,10 @@ const App = {
     schoolData: null,
     liveSchoolStudents: [],
     selectedNameColumn: null,
+    // New: Support for separate first/last name columns
+    columnMode: 'combined', // 'combined' or 'separate'
+    selectedLastNameColumn: null,
+    selectedFirstNameColumn: null,
     tabConfigs: {},
     matchResults: {},
     manualMatches: {},
@@ -29,6 +216,11 @@ const App = {
         // File upload handlers
         document.getElementById('school-file').addEventListener('change', (e) => this.handleSchoolFile(e));
         document.getElementById('liveschool-file').addEventListener('change', (e) => this.handleLiveSchoolFile(e));
+
+        // Column mode toggle
+        document.querySelectorAll('input[name="column-mode"]').forEach(radio => {
+            radio.addEventListener('change', (e) => this.handleColumnModeChange(e.target.value));
+        });
 
         // Column selection
         document.getElementById('confirm-column').addEventListener('click', () => this.confirmColumnSelection());
@@ -232,6 +424,35 @@ const App = {
     },
 
     /**
+     * Handle column mode change (combined vs separate)
+     */
+    handleColumnModeChange: function(mode) {
+        this.columnMode = mode;
+
+        // Toggle visibility of column selector sections
+        const combinedSection = document.getElementById('combined-column-selector');
+        const separateSection = document.getElementById('separate-column-selector');
+
+        if (mode === 'combined') {
+            combinedSection.classList.remove('hidden');
+            separateSection.classList.add('hidden');
+        } else {
+            combinedSection.classList.add('hidden');
+            separateSection.classList.remove('hidden');
+        }
+
+        // Reset selections when mode changes
+        this.selectedNameColumn = null;
+        this.selectedLastNameColumn = null;
+        this.selectedFirstNameColumn = null;
+
+        // Clear selection UI
+        document.querySelectorAll('.column-option.selected').forEach(el => {
+            el.classList.remove('selected');
+        });
+    },
+
+    /**
      * Show column selector for name column
      */
     showColumnSelector: function() {
@@ -240,8 +461,9 @@ const App = {
         const firstSheet = this.schoolData.sheets[this.schoolData.sheetNames[0]];
         const columns = Parser.getColumnInfo(firstSheet);
 
-        const container = document.getElementById('column-selector');
-        container.innerHTML = '';
+        // Populate combined column selector
+        const combinedContainer = document.getElementById('column-selector');
+        combinedContainer.innerHTML = '';
 
         columns.forEach((col, idx) => {
             const div = document.createElement('div');
@@ -251,39 +473,130 @@ const App = {
                 <strong>${col.header}</strong>
                 <span class="column-preview">${col.sample.substring(0, 30)}${col.sample.length > 30 ? '...' : ''}</span>
             `;
-            div.addEventListener('click', () => this.selectColumn(idx));
-            container.appendChild(div);
+            div.addEventListener('click', () => this.selectColumn(idx, 'combined'));
+            combinedContainer.appendChild(div);
+        });
+
+        // Populate last name column selector
+        const lastNameContainer = document.getElementById('last-name-column-selector');
+        lastNameContainer.innerHTML = '';
+
+        columns.forEach((col, idx) => {
+            const div = document.createElement('div');
+            div.className = 'column-option';
+            div.dataset.index = idx;
+            div.dataset.type = 'lastName';
+            div.innerHTML = `
+                <strong>${col.header}</strong>
+                <span class="column-preview">${col.sample.substring(0, 25)}${col.sample.length > 25 ? '...' : ''}</span>
+            `;
+            div.addEventListener('click', () => this.selectColumn(idx, 'lastName'));
+            lastNameContainer.appendChild(div);
+        });
+
+        // Populate first name column selector
+        const firstNameContainer = document.getElementById('first-name-column-selector');
+        firstNameContainer.innerHTML = '';
+
+        columns.forEach((col, idx) => {
+            const div = document.createElement('div');
+            div.className = 'column-option';
+            div.dataset.index = idx;
+            div.dataset.type = 'firstName';
+            div.innerHTML = `
+                <strong>${col.header}</strong>
+                <span class="column-preview">${col.sample.substring(0, 25)}${col.sample.length > 25 ? '...' : ''}</span>
+            `;
+            div.addEventListener('click', () => this.selectColumn(idx, 'firstName'));
+            firstNameContainer.appendChild(div);
         });
 
         this.unlockStep(2);
 
-        // Auto-select column that looks like a name (contains comma)
-        for (let i = 0; i < columns.length; i++) {
-            if (columns[i].sample.includes(',') && columns[i].sample.match(/[A-Za-z]/)) {
-                this.selectColumn(i);
-                break;
+        // Auto-select based on mode
+        if (this.columnMode === 'combined') {
+            // Auto-select column that looks like a combined name (contains comma)
+            for (let i = 0; i < columns.length; i++) {
+                if (columns[i].sample.includes(',') && columns[i].sample.match(/[A-Za-z]/)) {
+                    this.selectColumn(i, 'combined');
+                    break;
+                }
+            }
+        } else {
+            // Auto-select columns that look like last/first name
+            const headerLower = columns.map(c => c.header.toLowerCase());
+
+            // Try to find last name column
+            for (let i = 0; i < columns.length; i++) {
+                if (headerLower[i].includes('last') && headerLower[i].includes('name')) {
+                    this.selectColumn(i, 'lastName');
+                    break;
+                }
+            }
+
+            // Try to find first name column
+            for (let i = 0; i < columns.length; i++) {
+                if (headerLower[i].includes('first') && headerLower[i].includes('name')) {
+                    this.selectColumn(i, 'firstName');
+                    break;
+                }
             }
         }
     },
 
     /**
      * Select a column
+     * @param {number} index - Column index
+     * @param {string} type - 'combined', 'lastName', or 'firstName'
      */
-    selectColumn: function(index) {
-        this.selectedNameColumn = index;
+    selectColumn: function(index, type = 'combined') {
+        if (type === 'combined') {
+            this.selectedNameColumn = index;
 
-        document.querySelectorAll('.column-option').forEach((el, idx) => {
-            el.classList.toggle('selected', idx === index);
-        });
+            // Update combined selector UI
+            document.querySelectorAll('#column-selector .column-option').forEach((el, idx) => {
+                el.classList.toggle('selected', idx === index);
+            });
+        } else if (type === 'lastName') {
+            this.selectedLastNameColumn = index;
+
+            // Update last name selector UI
+            document.querySelectorAll('#last-name-column-selector .column-option').forEach((el, idx) => {
+                el.classList.toggle('selected', idx === index);
+            });
+        } else if (type === 'firstName') {
+            this.selectedFirstNameColumn = index;
+
+            // Update first name selector UI
+            document.querySelectorAll('#first-name-column-selector .column-option').forEach((el, idx) => {
+                el.classList.toggle('selected', idx === index);
+            });
+        }
     },
 
     /**
      * Confirm column selection and proceed
      */
     confirmColumnSelection: function() {
-        if (this.selectedNameColumn === null) {
-            alert('Please select the column containing student names.');
-            return;
+        if (this.columnMode === 'combined') {
+            if (this.selectedNameColumn === null) {
+                alert('Please select the column containing student names.');
+                return;
+            }
+        } else {
+            // Separate mode
+            if (this.selectedLastNameColumn === null) {
+                alert('Please select the Last Name column.');
+                return;
+            }
+            if (this.selectedFirstNameColumn === null) {
+                alert('Please select the First Name column.');
+                return;
+            }
+            if (this.selectedLastNameColumn === this.selectedFirstNameColumn) {
+                alert('Last Name and First Name columns must be different.');
+                return;
+            }
         }
 
         this.unlockStep(3);
@@ -294,8 +607,19 @@ const App = {
      * Check if ready to show behavior assignment
      */
     checkReadyForBehaviors: function() {
-        if (!this.schoolData || !this.liveSchoolStudents.length || this.selectedNameColumn === null) {
+        if (!this.schoolData || !this.liveSchoolStudents.length) {
             return;
+        }
+
+        // Check column selection based on mode
+        if (this.columnMode === 'combined') {
+            if (this.selectedNameColumn === null) {
+                return;
+            }
+        } else {
+            if (this.selectedLastNameColumn === null || this.selectedFirstNameColumn === null) {
+                return;
+            }
         }
 
         this.showBehaviorAssignment();
@@ -337,7 +661,18 @@ const App = {
 
         this.schoolData.sheetNames.forEach(sheetName => {
             const sheetData = this.schoolData.sheets[sheetName];
-            const students = Parser.extractStudentsFromSheet(sheetData, this.selectedNameColumn);
+
+            // Extract students based on column mode
+            let students;
+            if (this.columnMode === 'combined') {
+                students = Parser.extractStudentsFromSheet(sheetData, this.selectedNameColumn);
+            } else {
+                students = Parser.extractStudentsFromSeparateColumns(
+                    sheetData,
+                    this.selectedLastNameColumn,
+                    this.selectedFirstNameColumn
+                );
+            }
 
             const div = document.createElement('div');
             div.className = 'tab-behavior-item';
@@ -1892,7 +2227,7 @@ const Onboarding = {
     checkFirstVisit: function() {
         const hasVisited = localStorage.getItem('liveschool-points-visited');
         const lastVersion = localStorage.getItem('liveschool-points-version');
-        const currentVersion = '2.0.0';
+        const currentVersion = '2.1.0';
 
         if (!hasVisited) {
             // First visit - show welcome
@@ -1919,6 +2254,10 @@ const Onboarding = {
 
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize authentication first
+    Auth.init();
+
+    // Initialize app modules (they're hidden until auth succeeds)
     App.init();
     DemoApp.init();
     Onboarding.init();

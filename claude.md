@@ -18,7 +18,9 @@ This tool helps bulk-assign behaviors (points) to students in LiveSchool. It has
 1. Open the tool in your browser
 2. Upload the school's XLSX file (drag & drop or click)
 3. Upload the LiveSchool CSV export
-4. Select the column containing student names
+4. Select how names are formatted:
+   - **Combined column**: Names in "Last, First" format in one column
+   - **Separate columns**: Last Name and First Name in different columns
 5. Enter Roster ID, Location ID, and School ID
 6. Enter Behavior ID for each tab (or use "Apply to All")
 7. Click "Run Matching" to match names
@@ -48,17 +50,29 @@ Use this mode to backfill randomized point history for demo sites.
 
 ### School XLSX File
 - Multiple tabs allowed (each tab = different behavior to assign)
-- Student names typically in format: `LASTNAME, FIRSTNAME MIDDLENAME`
-- The comma is the delimiter between last name and first name
 - Names are usually ALL CAPS
 - May include their own student ID column (ignore it - we need LiveSchool IDs)
 
-**Example:**
-```
-StudentID    StudentName
-240975409    ABDELMEGUID, ROAA ABDELGHANY
-250112601    ACEVEDO POLO, LUISA
-```
+**Supported name formats:**
+
+1. **Combined column** - Student names in format: `LASTNAME, FIRSTNAME MIDDLENAME`
+   - The comma is the delimiter between last name and first name
+
+   **Example:**
+   ```
+   StudentID    StudentName
+   240975409    ABDELMEGUID, ROAA ABDELGHANY
+   250112601    ACEVEDO POLO, LUISA
+   ```
+
+2. **Separate columns** - Last name and first name in different columns
+
+   **Example:**
+   ```
+   StudentID    LastName           FirstName
+   240975409    ABDELMEGUID        ROAA ABDELGHANY
+   250112601    ACEVEDO POLO       LUISA
+   ```
 
 ### LiveSchool CSV Export
 - Row 1: Version ID metadata (skip this row)
@@ -465,6 +479,11 @@ First-visit and version tracking uses localStorage keys:
 - `liveschool-points-version`: Last version user has seen
 
 ## Changelog
+
+### v2.1.0 (January 2026)
+- **New: Separate column support** - Now supports school files with names in separate "Last Name" and "First Name" columns
+- Choose between "Combined column" (Last, First format) or "Separate columns" when selecting name columns
+- Auto-detects column headers when using separate column mode
 
 ### v2.0.0 (January 2026)
 - **New: Demo Data Generator Mode** - Create randomized point history for demo sites
