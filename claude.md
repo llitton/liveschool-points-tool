@@ -39,7 +39,7 @@ Use this mode to backfill randomized point history for demo sites.
 4. Add behaviors:
    - Click "Show Behavior Discovery Script" to get a helper script
    - Paste the script in LiveSchool's console to list available behaviors
-   - Add at least one merit and one demerit behavior
+   - Add at least one behavior (merit or demerit - both not required)
 5. Configure settings:
    - Start/End dates for the demo period
    - Min/Max points per student
@@ -417,11 +417,11 @@ The Demo Data Generator mode allows you to create realistic point history for de
 
 1. **Upload Students**: Upload a LiveSchool CSV export to get student IDs
 2. **Configure Site**: Enter the Roster ID, Location ID, and School ID
-3. **Add Behaviors**: Add merit and demerit behaviors to use for the demo data
+3. **Add Behaviors**: Add behaviors to use for demo data (can be all merits, all demerits, or a mix)
 4. **Set Parameters**:
    - **Date Range**: Points will only be assigned on weekdays (Mon-Fri)
    - **Points Per Student**: Random number between min and max
-   - **Ratio**: Positive to negative point ratio (e.g., 4:1 = 80% positive)
+   - **Ratio**: Positive to negative point ratio (e.g., 4:1 = 80% positive). Auto-adjusts to 100% if only one behavior type is present.
 5. **Generate**: Creates a script that randomizes everything:
    - Different behaviors per student
    - Random dates within the range
@@ -601,6 +601,11 @@ First-visit and version tracking uses localStorage keys:
 - `liveschool-points-version`: Last version user has seen
 
 ## Changelog
+
+### v2.2.3 (January 2026)
+- **Improved: Demo Data Generator** - No longer requires demerit behaviors
+- Can now generate demo data with only merit behaviors (or only demerits)
+- Ratio auto-adjusts to 100% positive/negative when only one behavior type is present
 
 ### v2.2.2 (January 2026)
 - **Improved: UX/UI overhaul** - Enhanced visual design and usability
