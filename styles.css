@@ -1475,6 +1475,16 @@ h1 {
     color: #c53030 !important;
 }
 
+/* Admin/Dev links */
+.admin-link {
+    color: #a0aec0 !important;
+    font-size: 0.85rem;
+}
+
+.admin-link:hover {
+    color: #718096 !important;
+}
+
 /* ============================================= */
 /* BALANCE TRANSFER MODE STYLES */
 /* ============================================= */
