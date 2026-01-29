@@ -1479,6 +1479,20 @@ h1 {
 /* BALANCE TRANSFER MODE STYLES */
 /* ============================================= */
 
+/* Balance config section */
+.balance-config-section {
+    background: #f7fafc;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.balance-config-section h4 {
+    margin-bottom: 0.5rem;
+    color: #2d3748;
+    font-size: 0.95rem;
+}
+
 /* Balance column selectors */
 .balance-column-selectors {
     display: grid;

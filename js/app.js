@@ -2428,6 +2428,11 @@ const BalanceApp = {
      * Confirm column selection and proceed
      */
     confirmColumnSelection: function() {
+        const rewardId = document.getElementById('balance-reward-id').value.trim();
+        if (!rewardId) {
+            alert('Please enter the Reward ID for this school.');
+            return;
+        }
         if (this.selectedNameColumn === null) {
             alert('Please select the column containing student names.');
             return;
@@ -2621,6 +2626,12 @@ const BalanceApp = {
      * Generate the transfer script
      */
     generateScript: function() {
+        const rewardId = document.getElementById('balance-reward-id').value.trim();
+        if (!rewardId) {
+            alert('Please enter the Reward ID in Step 2.');
+            return;
+        }
+
         // Collect all student transfers
         const transfers = [];
 
@@ -2654,7 +2665,7 @@ const BalanceApp = {
             return;
         }
 
-        const script = this.buildTransferScript(transfers);
+        const script = this.buildTransferScript(transfers, rewardId);
 
         // Display the script
         const container = document.getElementById('balance-scripts-output');
@@ -2703,7 +2714,7 @@ const BalanceApp = {
     /**
      * Build the transfer script content
      */
-    buildTransferScript: function(transfers) {
+    buildTransferScript: function(transfers, rewardId) {
         const transfersJson = JSON.stringify(transfers, null, 2);
 
         return `/**
@@ -2712,9 +2723,11 @@ const BalanceApp = {
  *
  * Students: ${transfers.length}
  * Total Points: ${transfers.reduce((sum, t) => sum + t.amount, 0).toLocaleString()}
+ * Reward ID: ${rewardId}
  */
 
 const TRANSFERS = ${transfersJson};
+const REWARD_ID = "${rewardId}";
 
 const BATCH_DELAY = 200; // Delay between requests in ms
 const RETRY_ATTEMPTS = 3;
@@ -2724,39 +2737,18 @@ async function sleep(ms) {
 }
 
 async function transferPoints(studentId, amount, name, attempt = 1) {
-    const formData = \`--xyzboundary
-Content-Disposition: form-data; name="category"
-
-adjustment
---xyzboundary
-Content-Disposition: form-data; name="name"
-
-Starting Bank Balance
---xyzboundary
-Content-Disposition: form-data; name="reward"
-
-131999
---xyzboundary
-Content-Disposition: form-data; name="amount"
-
-\${amount}
---xyzboundary
-Content-Disposition: form-data; name="student"
-
-\${studentId}
---xyzboundary
-Content-Disposition: form-data; name="type"
-
-credit
---xyzboundary--
-\`;
+    // Use FormData API for proper multipart encoding
+    const formData = new FormData();
+    formData.append('category', 'adjustment');
+    formData.append('name', 'Starting Bank Balance');
+    formData.append('reward', REWARD_ID);
+    formData.append('amount', amount.toString());
+    formData.append('student', studentId.toString());
+    formData.append('type', 'credit');
 
     try {
         const response = await fetch("https://admin.liveschoolinc.com/popup/transaction/add", {
             method: "POST",
-            headers: {
-                "Content-Type": "multipart/form-data; boundary=xyzboundary"
-            },
             credentials: "include",
             body: formData
         });
@@ -2786,6 +2778,7 @@ credit
 (async () => {
     console.log('=== BALANCE TRANSFER ===');
     console.log(\`Processing \${TRANSFERS.length} students...\`);
+    console.log(\`Reward ID: \${REWARD_ID}\`);
     console.log('');
 
     let successCount = 0;
@@ -2820,40 +2813,22 @@ credit
         const retryScript = \`
 // ========== RETRY SCRIPT FOR FAILED TRANSFERS ==========
 const RETRY_TRANSFERS = \${JSON.stringify(failedTransfers.map(f => ({ studentId: f.studentId, name: f.name, amount: f.amount })), null, 2)};
+const REWARD_ID = "\${REWARD_ID}";
 
 (async () => {
     for (let i = 0; i < RETRY_TRANSFERS.length; i++) {
         const t = RETRY_TRANSFERS[i];
-        const formData = \\\`--xyzboundary
-Content-Disposition: form-data; name="category"
+        const formData = new FormData();
+        formData.append('category', 'adjustment');
+        formData.append('name', 'Starting Bank Balance');
+        formData.append('reward', REWARD_ID);
+        formData.append('amount', t.amount.toString());
+        formData.append('student', t.studentId.toString());
+        formData.append('type', 'credit');
 
-adjustment
---xyzboundary
-Content-Disposition: form-data; name="name"
-
-Starting Bank Balance
---xyzboundary
-Content-Disposition: form-data; name="reward"
-
-131999
---xyzboundary
-Content-Disposition: form-data; name="amount"
-
-\\\${t.amount}
---xyzboundary
-Content-Disposition: form-data; name="student"
-
-\\\${t.studentId}
---xyzboundary
-Content-Disposition: form-data; name="type"
-
-credit
---xyzboundary--
-\\\`;
         try {
             const response = await fetch("https://admin.liveschoolinc.com/popup/transaction/add", {
                 method: "POST",
-                headers: { "Content-Type": "multipart/form-data; boundary=xyzboundary" },
                 credentials: "include",
                 body: formData
             });

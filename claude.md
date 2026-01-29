@@ -520,16 +520,24 @@ For "FirstName LastName" format where last name can be multiple words:
 
 ```
 POST https://admin.liveschoolinc.com/popup/transaction/add
-Content-Type: multipart/form-data
+Content-Type: multipart/form-data (handled automatically by FormData API)
 
 Fields:
 - category: "adjustment"
 - name: "Starting Bank Balance"
-- reward: 131999 (universal reward ID)
+- reward: [school-specific reward ID - user must enter this]
 - amount: [point amount]
 - student: [LiveSchool student ID]
 - type: "credit"
 ```
+
+**Finding the Reward ID:** To find the reward ID for a school:
+1. Log into LiveSchool admin (admin.liveschoolinc.com)
+2. Go to Banking > Transactions
+3. Manually add a transaction for any student
+4. Open DevTools (F12) > Network tab
+5. Look for the POST request to `/popup/transaction/add`
+6. Find the `reward` field in the request body
 
 ### Generated Script Features
 

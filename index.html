@@ -670,13 +670,22 @@
             </div>
         </section>
 
-        <!-- Balance Step 2: Column Selection -->
+        <!-- Balance Step 2: Column Selection & Config -->
         <section class="step balance-step hidden locked" id="balance-step-columns">
             <div class="step-header">
-                <h2><span class="step-badge">2</span> Select Columns</h2>
+                <h2><span class="step-badge">2</span> Configuration</h2>
                 <span class="lock-icon">🔒</span>
             </div>
             <div class="step-content">
+                <div class="balance-config-section">
+                    <h4>Reward ID</h4>
+                    <p class="hint">Enter your school's reward ID. You can find this in the network request when manually adding a transaction in LiveSchool's banking section.</p>
+                    <div class="config-field" style="max-width: 200px;">
+                        <input type="text" id="balance-reward-id" placeholder="e.g., 209969">
+                    </div>
+                </div>
+
+                <h4 style="margin-top: 1.5rem;">Select Columns</h4>
                 <p>Select which columns contain the student names and point amounts.</p>
 
                 <div class="balance-column-selectors">
