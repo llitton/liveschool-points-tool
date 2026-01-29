@@ -1605,12 +1605,12 @@ const DemoApp = {
             behaviorsStep.classList.remove('locked');
         }
 
-        // Step 4 (Settings) - unlocks when behaviors are added
+        // Step 4 (Settings) - unlocks when at least one behavior is added
         const settingsStep = document.getElementById('demo-step-settings');
         const hasMerit = this.behaviors.some(b => b.type === 'merit');
         const hasDemerit = this.behaviors.some(b => b.type === 'demerit');
 
-        if (hasMerit && hasDemerit) {
+        if (this.behaviors.length > 0) {
             settingsStep.classList.remove('locked');
             this.updatePreview();
         }
@@ -1620,7 +1620,7 @@ const DemoApp = {
         const startDate = document.getElementById('demo-start-date').value;
         const endDate = document.getElementById('demo-end-date').value;
 
-        if (startDate && endDate && hasMerit && hasDemerit) {
+        if (startDate && endDate && this.behaviors.length > 0) {
             generateStep.classList.remove('locked');
         }
     },
@@ -1784,9 +1784,18 @@ const DemoApp = {
         const meritBehaviors = this.behaviors.filter(b => b.type === 'merit');
         const demeritBehaviors = this.behaviors.filter(b => b.type === 'demerit');
 
-        if (meritBehaviors.length === 0 || demeritBehaviors.length === 0) {
-            alert('Please add at least one merit and one demerit behavior');
+        if (meritBehaviors.length === 0 && demeritBehaviors.length === 0) {
+            alert('Please add at least one behavior');
             return;
+        }
+
+        // Auto-adjust ratio if only one type of behavior exists
+        if (demeritBehaviors.length === 0) {
+            ratio.positive = 1;
+            ratio.negative = 0;
+        } else if (meritBehaviors.length === 0) {
+            ratio.positive = 0;
+            ratio.negative = 1;
         }
 
         const studentIds = this.students.map(s => s.id);
@@ -1972,26 +1981,30 @@ function generatePointAssignments() {
         const positiveCount = Math.round(totalPoints * (CONFIG.positiveRatio / totalRatio));
         const negativeCount = totalPoints - positiveCount;
 
-        // Generate positive points
-        for (let i = 0; i < positiveCount; i++) {
-            assignments.push({
-                studentId,
-                date: getRandomElement(CONFIG.weekdays),
-                time: getRandomSchoolTime(),
-                behaviorId: getRandomElement(CONFIG.meritBehaviors),
-                type: 'merit'
-            });
+        // Generate positive points (only if merit behaviors exist)
+        if (CONFIG.meritBehaviors.length > 0) {
+            for (let i = 0; i < positiveCount; i++) {
+                assignments.push({
+                    studentId,
+                    date: getRandomElement(CONFIG.weekdays),
+                    time: getRandomSchoolTime(),
+                    behaviorId: getRandomElement(CONFIG.meritBehaviors),
+                    type: 'merit'
+                });
+            }
         }
 
-        // Generate negative points
-        for (let i = 0; i < negativeCount; i++) {
-            assignments.push({
-                studentId,
-                date: getRandomElement(CONFIG.weekdays),
-                time: getRandomSchoolTime(),
-                behaviorId: getRandomElement(CONFIG.demeritBehaviors),
-                type: 'demerit'
-            });
+        // Generate negative points (only if demerit behaviors exist)
+        if (CONFIG.demeritBehaviors.length > 0) {
+            for (let i = 0; i < negativeCount; i++) {
+                assignments.push({
+                    studentId,
+                    date: getRandomElement(CONFIG.weekdays),
+                    time: getRandomSchoolTime(),
+                    behaviorId: getRandomElement(CONFIG.demeritBehaviors),
+                    type: 'demerit'
+                });
+            }
         }
     }
 
