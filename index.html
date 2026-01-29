@@ -215,10 +215,28 @@
                 </div>
                 <div class="header-actions">
                     <span id="user-email" class="user-email"></span>
-                    <button id="show-changelog" class="btn-link">What's New</button>
-                    <button id="show-help" class="btn-link">Help</button>
-                    <a href="tests.html" class="btn-link admin-link" title="Run test suite">Tests</a>
-                    <button id="sign-out-btn" class="btn-link sign-out">Sign Out</button>
+                    <div class="settings-dropdown">
+                        <button class="settings-btn" id="settings-toggle" title="Settings">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+                            </svg>
+                        </button>
+                        <div class="settings-menu hidden" id="settings-menu">
+                            <button class="settings-item" id="show-changelog">
+                                <span class="settings-icon">📢</span> What's New
+                            </button>
+                            <button class="settings-item" id="show-help">
+                                <span class="settings-icon">❓</span> Help
+                            </button>
+                            <a href="tests.html" class="settings-item">
+                                <span class="settings-icon">🧪</span> Run Tests
+                            </a>
+                            <div class="settings-divider"></div>
+                            <button class="settings-item settings-signout" id="sign-out-btn">
+                                <span class="settings-icon">🚪</span> Sign Out
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -272,21 +290,39 @@
                 <div class="upload-grid">
                     <div class="upload-box" id="school-dropzone">
                         <div class="dropzone-content">
-                            <div class="upload-icon">📄</div>
+                            <div class="upload-icon xlsx-icon">
+                                <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                                    <rect x="8" y="4" width="32" height="40" rx="2" fill="#22543d" stroke="#276749" stroke-width="2"/>
+                                    <text x="24" y="28" text-anchor="middle" fill="white" font-size="10" font-weight="bold">XLSX</text>
+                                </svg>
+                            </div>
                             <label for="school-file">School's XLSX File</label>
                             <input type="file" id="school-file" accept=".xlsx,.xls">
-                            <p class="upload-hint">Drag & drop or click to select</p>
-                            <p class="upload-desc">The file with student names from the school</p>
+                            <button type="button" class="select-file-btn">Select File</button>
+                            <p class="upload-hint">or drag & drop here</p>
+                            <p class="upload-desc">
+                                Must contain a student name column
+                                <span class="help-tooltip" title="Format: 'LASTNAME, FIRSTNAME' or separate columns. Names should include first and last name.">?</span>
+                            </p>
                         </div>
                         <div id="school-file-status" class="file-status"></div>
                     </div>
                     <div class="upload-box" id="liveschool-dropzone">
                         <div class="dropzone-content">
-                            <div class="upload-icon">📊</div>
+                            <div class="upload-icon csv-icon">
+                                <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                                    <rect x="8" y="4" width="32" height="40" rx="2" fill="#2b6cb0" stroke="#3182ce" stroke-width="2"/>
+                                    <text x="24" y="28" text-anchor="middle" fill="white" font-size="10" font-weight="bold">CSV</text>
+                                </svg>
+                            </div>
                             <label for="liveschool-file">LiveSchool CSV Export</label>
                             <input type="file" id="liveschool-file" accept=".csv">
-                            <p class="upload-hint">Drag & drop or click to select</p>
-                            <p class="upload-desc">Export from LiveSchool with student IDs</p>
+                            <button type="button" class="select-file-btn">Select File</button>
+                            <p class="upload-hint">or drag & drop here</p>
+                            <p class="upload-desc">
+                                Exported roster with student IDs
+                                <span class="help-tooltip" title="Export from LiveSchool: Students > Export. Must include 'id', 'First Name*', 'Last Name*' columns.">?</span>
+                            </p>
                         </div>
                         <div id="liveschool-file-status" class="file-status"></div>
                     </div>
@@ -298,7 +334,7 @@
         <section class="step assign-step locked" id="step-columns" data-step="2">
             <div class="step-header">
                 <h2><span class="step-badge">2</span> Select Name Column(s)</h2>
-                <span class="lock-icon">🔒</span>
+                <span class="lock-icon" title="Complete Step 1 to unlock">🔒</span>
             </div>
             <div class="step-content">
                 <p>How are student names formatted in the school's file?</p>
@@ -342,7 +378,7 @@
         <section class="step assign-step locked" id="step-config" data-step="3">
             <div class="step-header">
                 <h2><span class="step-badge">3</span> School Configuration</h2>
-                <span class="lock-icon">🔒</span>
+                <span class="lock-icon" title="Complete previous steps to unlock">🔒</span>
             </div>
             <div class="step-content">
                 <p class="step-description">Enter the IDs for this school (found in LiveSchool URLs or network requests)</p>
@@ -367,7 +403,7 @@
         <section class="step assign-step locked" id="step-behaviors" data-step="4">
             <div class="step-header">
                 <h2><span class="step-badge">4</span> Assign Behaviors to Tabs</h2>
-                <span class="lock-icon">🔒</span>
+                <span class="lock-icon" title="Complete previous steps to unlock">🔒</span>
             </div>
             <div class="step-content">
                 <p>Enter the behavior ID and type for each tab in the school's file.</p>
@@ -389,7 +425,7 @@
         <section class="step assign-step locked" id="step-match" data-step="5">
             <div class="step-header">
                 <h2><span class="step-badge">5</span> Review Matches</h2>
-                <span class="lock-icon">🔒</span>
+                <span class="lock-icon" title="Complete previous steps to unlock">🔒</span>
             </div>
             <div class="step-content">
                 <button id="run-matching" class="btn primary">
@@ -427,7 +463,7 @@
         <section class="step assign-step locked" id="step-output" data-step="6">
             <div class="step-header">
                 <h2><span class="step-badge">6</span> Generated Scripts</h2>
-                <span class="lock-icon">🔒</span>
+                <span class="lock-icon" title="Complete previous steps to unlock">🔒</span>
             </div>
             <div class="step-content">
                 <button id="generate-scripts" class="btn primary">Generate Scripts</button>
@@ -467,7 +503,7 @@
         <section class="step demo-step hidden locked" id="demo-step-config">
             <div class="step-header">
                 <h2><span class="step-badge">2</span> Site Configuration</h2>
-                <span class="lock-icon">🔒</span>
+                <span class="lock-icon" title="Complete previous steps to unlock">🔒</span>
             </div>
             <div class="step-content">
                 <p class="step-description">Enter the IDs for this demo site (found in LiveSchool URLs or network requests)</p>
@@ -492,7 +528,7 @@
         <section class="step demo-step hidden locked" id="demo-step-behaviors">
             <div class="step-header">
                 <h2><span class="step-badge">3</span> Configure Behaviors</h2>
-                <span class="lock-icon">🔒</span>
+                <span class="lock-icon" title="Complete previous steps to unlock">🔒</span>
             </div>
             <div class="step-content">
                 <p class="step-description">Add the behaviors to use for demo data. Use the discovery script to find behavior IDs.</p>
@@ -542,7 +578,7 @@
         <section class="step demo-step hidden locked" id="demo-step-settings">
             <div class="step-header">
                 <h2><span class="step-badge">4</span> Demo Settings</h2>
-                <span class="lock-icon">🔒</span>
+                <span class="lock-icon" title="Complete previous steps to unlock">🔒</span>
             </div>
             <div class="step-content">
                 <div class="settings-grid">
@@ -600,7 +636,7 @@
         <section class="step demo-step hidden locked" id="demo-step-generate">
             <div class="step-header">
                 <h2><span class="step-badge">5</span> Generate Demo Script</h2>
-                <span class="lock-icon">🔒</span>
+                <span class="lock-icon" title="Complete previous steps to unlock">🔒</span>
             </div>
             <div class="step-content">
                 <div id="demo-preview" class="demo-preview hidden">
@@ -684,7 +720,7 @@
         <section class="step balance-step hidden locked" id="balance-step-columns">
             <div class="step-header">
                 <h2><span class="step-badge">2</span> Configuration</h2>
-                <span class="lock-icon">🔒</span>
+                <span class="lock-icon" title="Complete previous steps to unlock">🔒</span>
             </div>
             <div class="step-content">
                 <div class="balance-config-section">
@@ -719,7 +755,7 @@
         <section class="step balance-step hidden locked" id="balance-step-match">
             <div class="step-header">
                 <h2><span class="step-badge">3</span> Review Matches</h2>
-                <span class="lock-icon">🔒</span>
+                <span class="lock-icon" title="Complete previous steps to unlock">🔒</span>
             </div>
             <div class="step-content">
                 <button id="balance-run-matching" class="btn primary">
@@ -762,7 +798,7 @@
         <section class="step balance-step hidden locked" id="balance-step-generate">
             <div class="step-header">
                 <h2><span class="step-badge">4</span> Generate Transfer Script</h2>
-                <span class="lock-icon">🔒</span>
+                <span class="lock-icon" title="Complete previous steps to unlock">🔒</span>
             </div>
             <div class="step-content">
                 <button id="balance-generate-script" class="btn primary">Generate Script</button>

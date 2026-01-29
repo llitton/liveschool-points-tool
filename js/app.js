@@ -2978,4 +2978,32 @@ document.addEventListener('DOMContentLoaded', () => {
     DemoApp.init();
     BalanceApp.init();
     Onboarding.init();
+
+    // Settings dropdown toggle
+    const settingsToggle = document.getElementById('settings-toggle');
+    const settingsMenu = document.getElementById('settings-menu');
+
+    if (settingsToggle && settingsMenu) {
+        // Toggle menu on button click
+        settingsToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            settingsMenu.classList.toggle('hidden');
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!settingsMenu.classList.contains('hidden') &&
+                !settingsMenu.contains(e.target) &&
+                e.target !== settingsToggle) {
+                settingsMenu.classList.add('hidden');
+            }
+        });
+
+        // Close menu when clicking a menu item (except for links which navigate)
+        settingsMenu.querySelectorAll('.settings-item:not(a)').forEach(item => {
+            item.addEventListener('click', () => {
+                settingsMenu.classList.add('hidden');
+            });
+        });
+    }
 });

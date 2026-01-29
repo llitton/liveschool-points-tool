@@ -316,22 +316,47 @@ h1 {
 
 .step-label {
     font-size: 0.7rem;
-    color: #718096;
+    color: #4a5568;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    transition: all 0.2s;
 }
 
 .progress-step.active .step-label {
-    color: #4299e1;
-    font-weight: 600;
+    color: #2b6cb0;
+    font-weight: 700;
+    font-size: 0.75rem;
+}
+
+.progress-step.completed .step-label {
+    color: #276749;
+}
+
+.progress-step.completed {
+    cursor: pointer;
+}
+
+.progress-step.completed:hover .step-number {
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(72, 187, 120, 0.4);
+}
+
+.progress-step.completed:hover .step-label {
+    color: #22543d;
 }
 
 .progress-line {
     width: 40px;
-    height: 2px;
+    height: 3px;
     background: #e2e8f0;
     margin: 0 0.5rem;
     margin-bottom: 1rem;
+    border-radius: 2px;
+    transition: background 0.3s;
+}
+
+.progress-line.completed {
+    background: #48bb78;
 }
 
 /* Steps */
@@ -393,7 +418,12 @@ h1 {
 
 .lock-icon {
     font-size: 1rem;
-    opacity: 0.5;
+    opacity: 0.7;
+    cursor: help;
+}
+
+.lock-icon:hover {
+    opacity: 1;
 }
 
 .step-content {
@@ -475,7 +505,93 @@ h1 {
 
 .upload-desc {
     font-size: 0.8rem;
-    color: #a0aec0;
+    color: #4a5568;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+}
+
+/* Select File Button */
+.select-file-btn {
+    background: #4299e1;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.25rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 0.75rem 0 0.5rem;
+    transition: all 0.2s;
+    pointer-events: auto;
+}
+
+.select-file-btn:hover {
+    background: #3182ce;
+    transform: translateY(-1px);
+}
+
+.upload-box.has-file .select-file-btn {
+    background: #48bb78;
+}
+
+/* Help Tooltip */
+.help-tooltip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    background: #e2e8f0;
+    color: #4a5568;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: help;
+    position: relative;
+}
+
+.help-tooltip:hover {
+    background: #4299e1;
+    color: white;
+}
+
+.help-tooltip[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2d3748;
+    color: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 400;
+    white-space: normal;
+    width: 200px;
+    text-align: left;
+    z-index: 100;
+    margin-bottom: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* File Type Icons */
+.upload-icon {
+    margin-bottom: 0.5rem;
+}
+
+.upload-icon svg {
+    display: block;
+}
+
+.xlsx-icon svg rect {
+    fill: #276749;
+}
+
+.csv-icon svg rect {
+    fill: #2b6cb0;
 }
 
 .file-status {
@@ -996,21 +1112,36 @@ h1 {
     border: none;
     border-radius: 8px;
     font-size: 0.9rem;
-    font-weight: 600;
+    font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
     background: transparent;
-    color: #718096;
+    color: #4a5568;
+    position: relative;
 }
 
 .mode-btn:hover {
-    color: #4a5568;
+    color: #2d3748;
+    background: rgba(255,255,255,0.5);
 }
 
 .mode-btn.active {
     background: white;
-    color: #4299e1;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    color: #2b6cb0;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(66, 153, 225, 0.25);
+}
+
+.mode-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 3px;
+    background: #4299e1;
+    border-radius: 2px;
 }
 
 /* ============================================= */
@@ -1475,14 +1606,89 @@ h1 {
     color: #c53030 !important;
 }
 
-/* Admin/Dev links */
-.admin-link {
-    color: #a0aec0 !important;
-    font-size: 0.85rem;
+/* ============================================= */
+/* SETTINGS DROPDOWN MENU */
+/* ============================================= */
+
+.settings-dropdown {
+    position: relative;
 }
 
-.admin-link:hover {
-    color: #718096 !important;
+.settings-btn {
+    background: none;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.5rem;
+    cursor: pointer;
+    color: #4a5568;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.settings-btn:hover {
+    background: #f7fafc;
+    border-color: #cbd5e0;
+    color: #2d3748;
+}
+
+.settings-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 0.5rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    min-width: 180px;
+    z-index: 100;
+    overflow: hidden;
+}
+
+.settings-menu.hidden {
+    display: none;
+}
+
+.settings-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: none;
+    border: none;
+    text-align: left;
+    font-size: 0.9rem;
+    color: #4a5568;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s;
+}
+
+.settings-item:hover {
+    background: #f7fafc;
+}
+
+.settings-icon {
+    font-size: 1rem;
+    width: 1.25rem;
+    text-align: center;
+}
+
+.settings-divider {
+    height: 1px;
+    background: #e2e8f0;
+    margin: 0.25rem 0;
+}
+
+.settings-signout {
+    color: #e53e3e;
+}
+
+.settings-signout:hover {
+    background: #fff5f5;
 }
 
 /* ============================================= */
