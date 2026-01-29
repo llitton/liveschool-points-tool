@@ -2943,7 +2943,7 @@ const Onboarding = {
     checkFirstVisit: function() {
         const hasVisited = localStorage.getItem('liveschool-points-visited');
         const lastVersion = localStorage.getItem('liveschool-points-version');
-        const currentVersion = '2.2.0';
+        const currentVersion = '2.2.1';
 
         if (!hasVisited) {
             // First visit - show welcome

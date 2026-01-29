@@ -282,9 +282,10 @@ The retry script includes only the failed student IDs with all original settings
 liveschool-points-app/
 ├── index.html          # Main page with UI
 ├── styles.css          # All styling
+├── tests.html          # Browser-based test suite
 ├── claude.md           # This documentation
 └── js/
-    ├── app.js          # Main application logic
+    ├── app.js          # Main application logic (App, DemoApp, BalanceApp modules)
     ├── matcher.js      # Name matching with Fuse.js
     └── parser.js       # XLSX and CSV parsing
 ```
@@ -335,6 +336,37 @@ open index.html
 python3 -m http.server 8000
 # Then open http://localhost:8000
 ```
+
+## Testing
+
+The project includes a browser-based test suite at `tests.html`.
+
+### Running Tests
+
+1. Open `tests.html` in a browser (or via local server)
+2. Tests run automatically on page load
+3. Results show pass/fail for each test with details on failures
+
+### Test Coverage
+
+The test suite covers:
+
+**Parser Module:**
+- `parseStudentName()` - Comma-separated "LASTNAME, FIRSTNAME" format
+- `parseFirstLastName()` - "FirstName LastName" format (Balance Transfer mode)
+- `getColumnInfo()` - Column header extraction
+- `extractBalanceData()` - Balance file data extraction
+
+**Matcher Module:**
+- `lastNamesMatch()` - Compound names, truncation handling
+- `firstNamesMatch()` - Middle name handling
+- `findExactMatch()` - Direct matching
+- `matchStudent()` - Single student matching with status
+- `matchAllStudents()` - Batch matching
+- `getAllStudentsForDropdown()` - Sorted dropdown list
+
+**Integration Tests:**
+- End-to-end flow from parsing "FirstName LastName" to matching LiveSchool students
 
 ## Security Notes
 
@@ -561,6 +593,11 @@ First-visit and version tracking uses localStorage keys:
 - `liveschool-points-version`: Last version user has seen
 
 ## Changelog
+
+### v2.2.1 (January 2026)
+- **Improved: Balance Transfer script** - Now uses browser's FormData API for proper multipart encoding
+- Added school-specific Reward ID field (required - varies by school)
+- Added test suite (`tests.html`) for Parser and Matcher modules
 
 ### v2.2.0 (January 2026)
 - **New: Balance Transfer Mode** - Transfer point balances from other systems to LiveSchool

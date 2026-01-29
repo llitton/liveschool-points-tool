@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveSchool Points Tool - Tests</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            background: #f0f4f8;
+        }
+        h1 { color: #2d3748; }
+        .test-suite {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .test-suite h2 {
+            margin-top: 0;
+            font-size: 1.1rem;
+            color: #4a5568;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 0.5rem;
+        }
+        .test {
+            padding: 0.5rem;
+            margin: 0.25rem 0;
+            border-radius: 4px;
+        }
+        .test.pass {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        .test.fail {
+            background: #fed7d7;
+            color: #822727;
+        }
+        .summary {
+            background: #2d3748;
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        .summary .pass-count { color: #68d391; }
+        .summary .fail-count { color: #fc8181; }
+        pre {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 0.5rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 0.8rem;
+        }
+    </style>
+    <!-- Load dependencies -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>
+</head>
+<body>
+    <h1>LiveSchool Points Tool - Test Suite</h1>
+    <div id="summary" class="summary"></div>
+    <div id="results"></div>
+
+    <script src="js/parser.js"></script>
+    <script src="js/matcher.js"></script>
+    <script>
+        const results = [];
+
+        function test(name, fn) {
+            try {
+                fn();
+                results.push({ name, passed: true });
+            } catch (e) {
+                results.push({ name, passed: false, error: e.message });
+            }
+        }
+
+        function assertEqual(actual, expected, message) {
+            if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+                throw new Error(`${message}\nExpected: ${JSON.stringify(expected)}\nActual: ${JSON.stringify(actual)}`);
+            }
+        }
+
+        function assertTrue(value, message) {
+            if (!value) {
+                throw new Error(message || 'Expected true but got false');
+            }
+        }
+
+        // ============================================
+        // Parser Tests
+        // ============================================
+
+        test('Parser.parseStudentName - comma-separated format', () => {
+            const result = Parser.parseStudentName('SMITH, JOHN MICHAEL');
+            assertEqual(result.lastName, 'SMITH', 'lastName should be SMITH');
+            assertEqual(result.firstName, 'JOHN MICHAEL', 'firstName should be JOHN MICHAEL');
+        });
+
+        test('Parser.parseStudentName - handles extra spaces', () => {
+            const result = Parser.parseStudentName('  GARCIA  ,  MARIA  ');
+            assertEqual(result.lastName, 'GARCIA', 'lastName should be GARCIA');
+            assertEqual(result.firstName, 'MARIA', 'firstName should be MARIA');
+        });
+
+        test('Parser.parseStudentName - no comma falls back to space parsing', () => {
+            const result = Parser.parseStudentName('JOHN SMITH');
+            assertEqual(result.lastName, 'JOHN', 'lastName should be first word');
+            assertEqual(result.firstName, 'SMITH', 'firstName should be rest');
+        });
+
+        test('Parser.parseStudentName - handles empty input', () => {
+            const result = Parser.parseStudentName('');
+            assertEqual(result.firstName, '', 'firstName should be empty');
+            assertEqual(result.lastName, '', 'lastName should be empty');
+        });
+
+        test('Parser.parseStudentName - handles null input', () => {
+            const result = Parser.parseStudentName(null);
+            assertEqual(result.firstName, '', 'firstName should be empty');
+            assertEqual(result.lastName, '', 'lastName should be empty');
+        });
+
+        test('Parser.parseFirstLastName - basic format', () => {
+            const result = Parser.parseFirstLastName('Arianna Martinez');
+            assertEqual(result.firstName, 'ARIANNA', 'firstName should be ARIANNA');
+            assertEqual(result.lastName, 'MARTINEZ', 'lastName should be MARTINEZ');
+        });
+
+        test('Parser.parseFirstLastName - compound last name', () => {
+            const result = Parser.parseFirstLastName('Fabiola Murillo Martinez');
+            assertEqual(result.firstName, 'FABIOLA', 'firstName should be first word');
+            assertEqual(result.lastName, 'MURILLO MARTINEZ', 'lastName should be rest');
+        });
+
+        test('Parser.parseFirstLastName - three-part last name', () => {
+            const result = Parser.parseFirstLastName('Pedro Plancarte Abarca Garcia');
+            assertEqual(result.firstName, 'PEDRO', 'firstName should be PEDRO');
+            assertEqual(result.lastName, 'PLANCARTE ABARCA GARCIA', 'lastName should be rest');
+        });
+
+        test('Parser.parseFirstLastName - single name', () => {
+            const result = Parser.parseFirstLastName('Madonna');
+            assertEqual(result.firstName, 'MADONNA', 'firstName should be MADONNA');
+            assertEqual(result.lastName, '', 'lastName should be empty');
+        });
+
+        test('Parser.parseFirstLastName - handles empty input', () => {
+            const result = Parser.parseFirstLastName('');
+            assertEqual(result.firstName, '', 'firstName should be empty');
+            assertEqual(result.lastName, '', 'lastName should be empty');
+        });
+
+        test('Parser.getColumnInfo - returns column headers and samples', () => {
+            const sheetData = [
+                ['StudentID', 'Name', 'Grade', 'Points'],
+                ['12345', 'John Smith', '5', '100']
+            ];
+            const columns = Parser.getColumnInfo(sheetData);
+            assertEqual(columns.length, 4, 'Should have 4 columns');
+            assertEqual(columns[1].header, 'Name', 'Second column should be Name');
+            assertEqual(columns[1].sample, 'John Smith', 'Sample should be John Smith');
+        });
+
+        test('Parser.extractBalanceData - extracts students with points', () => {
+            const rows = [
+                ['12345', '5', 'Arianna Martinez', '73'],
+                ['12346', '5', 'Fabiola Murillo Martinez', '59'],
+                ['12347', '5', '', '0'] // Empty name should be skipped
+            ];
+            const students = Parser.extractBalanceData(rows, 2, 3);
+            assertEqual(students.length, 2, 'Should have 2 students');
+            assertEqual(students[0].originalName, 'Arianna Martinez', 'First name');
+            assertEqual(students[0].points, 73, 'First points');
+            assertEqual(students[1].points, 59, 'Second points');
+        });
+
+        test('Parser.extractBalanceData - handles non-numeric points', () => {
+            const rows = [
+                ['12345', '5', 'John Smith', 'abc'],
+                ['12346', '5', 'Jane Doe', '50 points']
+            ];
+            const students = Parser.extractBalanceData(rows, 2, 3);
+            assertEqual(students[0].points, 0, 'Non-numeric should be 0');
+            assertEqual(students[1].points, 50, 'Should extract number from string');
+        });
+
+        // ============================================
+        // Matcher Tests
+        // ============================================
+
+        test('Matcher.lastNamesMatch - exact match', () => {
+            assertTrue(Matcher.lastNamesMatch('SMITH', 'SMITH'), 'Exact match should return true');
+        });
+
+        test('Matcher.lastNamesMatch - compound vs simple', () => {
+            assertTrue(Matcher.lastNamesMatch('LLIVISACA MALDONADO', 'LLIVISACA'),
+                'Compound name should match first part');
+        });
+
+        test('Matcher.lastNamesMatch - truncation case', () => {
+            assertTrue(Matcher.lastNamesMatch('GARCIALOPEZFERNANDEZ', 'GARCIALOPEZFERNAN'),
+                'Truncated name should match');
+        });
+
+        test('Matcher.lastNamesMatch - different names', () => {
+            assertTrue(!Matcher.lastNamesMatch('SMITH', 'JONES'),
+                'Different names should not match');
+        });
+
+        test('Matcher.firstNamesMatch - exact match', () => {
+            assertTrue(Matcher.firstNamesMatch('JOHN', 'JOHN'), 'Exact match should return true');
+        });
+
+        test('Matcher.firstNamesMatch - school has middle name', () => {
+            assertTrue(Matcher.firstNamesMatch('JOHN MICHAEL', 'JOHN'),
+                'Should match when school has middle name');
+        });
+
+        test('Matcher.firstNamesMatch - LiveSchool has middle name', () => {
+            assertTrue(Matcher.firstNamesMatch('JOHN', 'JOHN MICHAEL'),
+                'Should match when LiveSchool has middle name');
+        });
+
+        test('Matcher.firstNamesMatch - first word matches', () => {
+            assertTrue(Matcher.firstNamesMatch('ROAA ABDELGHANY', 'ROAA'),
+                'First word should match');
+        });
+
+        test('Matcher.initialize and findExactMatch', () => {
+            const students = [
+                { id: '123', firstName: 'JOHN', lastName: 'SMITH' },
+                { id: '456', firstName: 'JANE', lastName: 'DOE' },
+                { id: '789', firstName: 'BELKAM', lastName: 'BARILLAS SEPULVEDA' }
+            ];
+            Matcher.initialize(students);
+
+            const match1 = Matcher.findExactMatch({ firstName: 'JOHN', lastName: 'SMITH' });
+            assertEqual(match1.id, '123', 'Should find John Smith');
+
+            const match2 = Matcher.findExactMatch({ firstName: 'BELKAM', lastName: 'BARILLAS SEPULVEDA' });
+            assertEqual(match2.id, '789', 'Should find Belkam');
+        });
+
+        test('Matcher.findExactMatch - handles compound last names', () => {
+            const students = [
+                { id: '789', firstName: 'FABIOLA', lastName: 'MURILLO MARTINEZ' }
+            ];
+            Matcher.initialize(students);
+
+            // Exact compound match
+            const match = Matcher.findExactMatch({ firstName: 'FABIOLA', lastName: 'MURILLO MARTINEZ' });
+            assertEqual(match.id, '789', 'Should find by compound last name');
+        });
+
+        test('Matcher.matchStudent - returns matched status for exact match', () => {
+            const students = [
+                { id: '123', firstName: 'JOHN', lastName: 'SMITH' }
+            ];
+            Matcher.initialize(students);
+
+            const result = Matcher.matchStudent({
+                originalName: 'SMITH, JOHN',
+                parsedName: { firstName: 'JOHN', lastName: 'SMITH' }
+            });
+            assertEqual(result.status, 'matched', 'Status should be matched');
+            assertEqual(result.match.id, '123', 'Should have correct match');
+        });
+
+        test('Matcher.matchStudent - returns unmatched status for no match', () => {
+            const students = [
+                { id: '123', firstName: 'JOHN', lastName: 'SMITH' }
+            ];
+            Matcher.initialize(students);
+
+            const result = Matcher.matchStudent({
+                originalName: 'DOE, JANE',
+                parsedName: { firstName: 'JANE', lastName: 'DOE' }
+            });
+            assertEqual(result.status, 'unmatched', 'Status should be unmatched');
+        });
+
+        test('Matcher.matchAllStudents - separates matched and unmatched', () => {
+            const liveSchoolStudents = [
+                { id: '123', firstName: 'JOHN', lastName: 'SMITH' },
+                { id: '456', firstName: 'JANE', lastName: 'DOE' }
+            ];
+            Matcher.initialize(liveSchoolStudents);
+
+            const schoolStudents = [
+                { originalName: 'SMITH, JOHN', parsedName: { firstName: 'JOHN', lastName: 'SMITH' } },
+                { originalName: 'BROWN, BOB', parsedName: { firstName: 'BOB', lastName: 'BROWN' } }
+            ];
+
+            const result = Matcher.matchAllStudents(schoolStudents);
+            assertEqual(result.matched.length, 1, 'Should have 1 matched');
+            assertEqual(result.unmatched.length, 1, 'Should have 1 unmatched');
+        });
+
+        test('Matcher.getAllStudentsForDropdown - returns sorted list', () => {
+            const students = [
+                { id: '123', firstName: 'JOHN', lastName: 'SMITH' },
+                { id: '456', firstName: 'JANE', lastName: 'DOE' }
+            ];
+            Matcher.initialize(students);
+
+            const dropdown = Matcher.getAllStudentsForDropdown();
+            assertEqual(dropdown.length, 2, 'Should have 2 students');
+            assertEqual(dropdown[0].displayName, 'DOE, JANE', 'Should be sorted alphabetically');
+        });
+
+        // ============================================
+        // Integration Tests
+        // ============================================
+
+        test('Integration: Parse FirstName LastName and match to LiveSchool', () => {
+            // Setup LiveSchool students
+            const liveSchoolStudents = [
+                { id: '4142144', firstName: 'CARLOS', lastName: 'ACEVEDO COLLADO' },
+                { id: '4142098', firstName: 'BELKAM', lastName: 'BARILLAS SEPULVEDA' },
+                { id: '4142299', firstName: 'AIYANNA', lastName: 'BARRAGAN' }
+            ];
+            Matcher.initialize(liveSchoolStudents);
+
+            // Parse school balance file format
+            const schoolNames = [
+                'Belkam Barillas Sepulveda',
+                'Aiyanna Barragan',
+                'Unknown Student'
+            ];
+
+            const parsed = schoolNames.map(name => ({
+                originalName: name,
+                parsedName: Parser.parseFirstLastName(name)
+            }));
+
+            const results = Matcher.matchAllStudents(parsed);
+
+            assertEqual(results.matched.length, 2, 'Should match 2 students');
+            assertEqual(results.unmatched.length, 1, 'Should have 1 unmatched');
+            assertEqual(results.matched[0].match.id, '4142098', 'Should match Belkam');
+        });
+
+        // ============================================
+        // Display Results
+        // ============================================
+
+        const passed = results.filter(r => r.passed).length;
+        const failed = results.filter(r => !r.passed).length;
+
+        document.getElementById('summary').innerHTML = `
+            <strong>Test Results:</strong>
+            <span class="pass-count">${passed} passed</span>,
+            <span class="fail-count">${failed} failed</span>
+        `;
+
+        const groupedResults = {};
+        results.forEach(r => {
+            const suite = r.name.split(' - ')[0].split('.')[0];
+            if (!groupedResults[suite]) groupedResults[suite] = [];
+            groupedResults[suite].push(r);
+        });
+
+        let html = '';
+        for (const suite in groupedResults) {
+            html += `<div class="test-suite"><h2>${suite}</h2>`;
+            for (const r of groupedResults[suite]) {
+                html += `<div class="test ${r.passed ? 'pass' : 'fail'}">
+                    ${r.passed ? '✓' : '✗'} ${r.name}
+                    ${r.error ? `<pre>${r.error}</pre>` : ''}
+                </div>`;
+            }
+            html += '</div>';
+        }
+
+        document.getElementById('results').innerHTML = html;
+
+        // Log to console as well
+        console.log(`Tests: ${passed} passed, ${failed} failed`);
+        if (failed > 0) {
+            console.error('Failed tests:', results.filter(r => !r.passed));
+        }
+    </script>
+</body>
+</html>
