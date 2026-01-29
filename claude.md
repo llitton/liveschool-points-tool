@@ -202,6 +202,13 @@ These stay the same for a single school but change between schools.
 
 ## UI Features
 
+### Header Navigation
+- **User email**: Shows logged-in user's email
+- **What's New**: Opens changelog modal showing recent updates
+- **Help**: Opens welcome/getting started modal
+- **Tests**: Links to test suite (tests.html) for verifying functionality
+- **Sign Out**: Logs out and returns to login screen
+
 ### Progress Tracking
 - 6-step wizard with locked progression
 - Steps unlock as you complete previous ones
@@ -343,9 +350,10 @@ The project includes a browser-based test suite at `tests.html`.
 
 ### Running Tests
 
-1. Open `tests.html` in a browser (or via local server)
-2. Tests run automatically on page load
-3. Results show pass/fail for each test with details on failures
+1. Click the "Tests" link in the header navigation (after signing in), or
+2. Open `tests.html` directly in a browser (https://points.liveschoolhelp.com/tests.html)
+3. Tests run automatically on page load
+4. Results show pass/fail for each test with details on failures
 
 ### Test Coverage
 
@@ -598,6 +606,7 @@ First-visit and version tracking uses localStorage keys:
 - **Improved: Balance Transfer script** - Now uses browser's FormData API for proper multipart encoding
 - Added school-specific Reward ID field (required - varies by school)
 - Added test suite (`tests.html`) for Parser and Matcher modules
+- Added "Tests" link in header navigation for easy access to test suite
 
 ### v2.2.0 (January 2026)
 - **New: Balance Transfer Mode** - Transfer point balances from other systems to LiveSchool
