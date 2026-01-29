@@ -602,6 +602,17 @@ First-visit and version tracking uses localStorage keys:
 
 ## Changelog
 
+### v2.2.2 (January 2026)
+- **Improved: UX/UI overhaul** - Enhanced visual design and usability
+- Settings dropdown menu replaces loose utility links (gear icon)
+- Stronger active state for mode toggle (bold text + underline indicator)
+- SVG file type icons in upload zones (green for XLSX, blue for CSV)
+- "Select File" buttons inside dropzones for clearer interaction
+- Help tooltips with format requirements (hover on "?" icon)
+- Progress stepper improvements (clickable completed steps, colored connecting lines)
+- Lock icons with title tooltips for locked steps
+- Improved text contrast for WCAG AA accessibility
+
 ### v2.2.1 (January 2026)
 - **Improved: Balance Transfer script** - Now uses browser's FormData API for proper multipart encoding
 - Added school-specific Reward ID field (required - varies by school)
