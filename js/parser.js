@@ -339,7 +339,7 @@ const Parser = {
     parsePointsLog: function(file) {
         return new Promise((resolve, reject) => {
             Papa.parse(file, {
-                delimiter: '\t',
+                // Auto-detect delimiter (handles both TSV and CSV exports)
                 complete: function(results) {
                     try {
                         const rawRows = results.data;
