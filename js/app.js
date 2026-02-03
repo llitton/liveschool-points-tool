@@ -3230,7 +3230,9 @@ const MergeApp = {
             const script = "fetch('https://api.liveschoolapp.com/v2/conducts?school=" + schoolId +
                 "&student=" + studentId + "&limit=1',{credentials:'include'}).then(r=>r.json()).then(d=>{" +
                 "var items=Object.values(d.items||{});" +
-                "if(items.length>0){console.log(JSON.stringify({locationId:items[0].location.id,locationName:items[0].location.name}))}" +
+                "if(items.length>0){var r={locationId:items[0].location.id,locationName:items[0].location.name};" +
+                "if(items[0].roster)r.rosterId=items[0].roster.id;" +
+                "console.log(JSON.stringify(r))}" +
                 "else{console.log('No conducts found for this student — try a different student ID')}});";
 
             codeEl.textContent = script;
@@ -3256,26 +3258,37 @@ const MergeApp = {
 
         // Extract schoolIds from the body
         const schoolMatch = text.match(/schoolIds[^[]*\[(\d+)/);
-        const rosterMatch = text.match(/soft_roster[^[]*objects[^[]*\[(\d+)/);
+        // Try multiple patterns for roster ID — the JSON may be escaped differently
+        const rosterMatch = text.match(/soft_roster[^[]*objects[^[]*\[(\d+)/) ||
+                            text.match(/soft_roster[^}]*(\d{4,})/) ||
+                            text.match(/roster[^:]*:\s*(\d{4,})/i);
 
         const found = [];
+        const missing = [];
 
         if (schoolMatch) {
             document.getElementById('merge-school-id').value = schoolMatch[1];
             document.getElementById('merge-school-id').dispatchEvent(new Event('input'));
             found.push('School ID: ' + schoolMatch[1]);
+        } else {
+            missing.push('School ID');
         }
 
         if (rosterMatch) {
             document.getElementById('merge-roster-id').value = rosterMatch[1];
             document.getElementById('merge-roster-id').dispatchEvent(new Event('input'));
             found.push('Roster ID: ' + rosterMatch[1]);
+        } else {
+            missing.push('Roster ID');
         }
 
         resultEl.classList.remove('hidden');
-        if (found.length > 0) {
+        if (found.length > 0 && missing.length === 0) {
             resultEl.className = 'discovery-result success';
             resultEl.textContent = 'Found: ' + found.join(', ');
+        } else if (found.length > 0) {
+            resultEl.className = 'discovery-result success';
+            resultEl.textContent = 'Found: ' + found.join(', ') + '. Not found: ' + missing.join(', ') + ' — enter manually above.';
         } else {
             resultEl.className = 'discovery-result error';
             resultEl.textContent = 'Could not find School ID or Roster ID. Make sure you copied the fetch call for the "metrics-new" request.';
@@ -3295,13 +3308,21 @@ const MergeApp = {
             const data = JSON.parse(text);
 
             if (data.locationId) {
+                const found = [];
                 document.getElementById('merge-location-id').value = data.locationId;
                 document.getElementById('merge-location-id').dispatchEvent(new Event('input'));
+                found.push('Location ID: ' + data.locationId + (data.locationName ? ' (' + data.locationName + ')' : ''));
+
+                // Also fill Roster ID if present and field is empty
+                if (data.rosterId && !document.getElementById('merge-roster-id').value.trim()) {
+                    document.getElementById('merge-roster-id').value = data.rosterId;
+                    document.getElementById('merge-roster-id').dispatchEvent(new Event('input'));
+                    found.push('Roster ID: ' + data.rosterId);
+                }
 
                 resultEl.classList.remove('hidden');
                 resultEl.className = 'discovery-result success';
-                resultEl.textContent = 'Found: Location ID: ' + data.locationId +
-                    (data.locationName ? ' (' + data.locationName + ')' : '');
+                resultEl.textContent = 'Found: ' + found.join(', ');
             } else {
                 resultEl.classList.remove('hidden');
                 resultEl.className = 'discovery-result error';
