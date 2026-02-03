@@ -68,15 +68,16 @@ Use this mode to transfer point balances from other student management systems.
 Use this mode when a school has duplicate student records (e.g., one manually created, one from Clever sync) and needs to replay the original student's behavior transactions onto the correct record.
 
 1. Click "Merge Students" toggle at the top
-2. Enter the Original Student ID (source) and New Student ID (target)
-3. Enter the Roster ID, Location ID, School ID, and optionally User ID (required for purchases)
-4. Upload the extended data export (TSV) for the original student's transaction history
-5. Paste the behavior JSON (from `GET /v2/schools/{schoolId}/behaviors`) to map behavior names to IDs
-6. Click "Parse Transactions" to review mapped/unmapped behaviors, purchases, and transaction groups
-7. Resolve any unmapped behaviors (dropdown) or rewards (enter incentive IDs)
-8. Click "Generate Script"
-9. Copy the script and paste into LiveSchool's browser console
-10. Teacher names are automatically added as comments (e.g., `[Originally by Mr. Shealy]`)
+2. (Optional) Upload the LiveSchool CSV export to find duplicate students — click "Use These IDs" to auto-fill
+3. Enter the Original Student ID (source) and New Student ID (target)
+4. Enter the Roster ID, Location ID, School ID, and optionally User ID (required for purchases)
+5. Upload the extended data export (TSV) for the original student's transaction history
+6. Paste the behavior JSON (from `GET /v2/schools/{schoolId}/behaviors`) to map behavior names to IDs
+7. Click "Parse Transactions" to review mapped/unmapped behaviors, purchases, and transaction groups
+8. Resolve any unmapped behaviors (dropdown) or rewards (enter incentive IDs)
+9. Click "Generate Script"
+10. Copy the script and paste into LiveSchool's browser console
+11. Teacher names are automatically added as comments (e.g., `[Originally by Mr. Shealy]`)
 
 ## File Formats
 
@@ -610,12 +611,13 @@ The Merge Students mode replays behavior transactions from a duplicate student r
 
 ### How It Works
 
-1. **Enter IDs**: Enter the Original Student ID (source of transactions) and the New Student ID (target to replay onto), plus the Roster ID, Location ID, and School ID
-2. **Upload Points Log**: Upload the extended data export (TSV) from LiveSchool containing the original student's transaction history
-3. **Import Behavior Map**: Paste the JSON output from `GET /v2/schools/{schoolId}/behaviors` so behavior names can be mapped to numeric IDs
-4. **Review Transactions**: Click "Parse Transactions" to see mapped/unmapped behaviors, API call count, and skipped rewards
-5. **Resolve Unmapped**: If any behavior names don't match, select the correct behavior from the dropdown
-6. **Generate Script**: Creates a sequential console script that replays each transaction group
+1. **Find Duplicates** (optional): Upload the LiveSchool CSV export of all students at the site. The tool groups students by first + last name and shows any with 2+ matching records. Click "Use These IDs" to auto-fill the student ID fields.
+2. **Enter IDs**: Enter the Original Student ID (source of transactions) and the New Student ID (target to replay onto), plus the Roster ID, Location ID, School ID, and optionally User ID (for purchases)
+3. **Upload Points Log**: Upload the extended data export (TSV) from LiveSchool containing the original student's transaction history
+4. **Import Behavior Map**: Paste the JSON output from `GET /v2/schools/{schoolId}/behaviors` so behavior names can be mapped to numeric IDs
+5. **Review Transactions**: Click "Parse Transactions" to see mapped/unmapped behaviors, purchases, API call count
+6. **Resolve Unmapped**: If any behavior names don't match, select the correct behavior from the dropdown. For unmapped rewards, enter the incentive ID.
+7. **Generate Script**: Creates a sequential console script that replays each transaction group
 
 ### Extended Data Export Format (TSV)
 
@@ -667,6 +669,12 @@ First-visit and version tracking uses localStorage keys:
 - `liveschool-points-version`: Last version user has seen
 
 ## Changelog
+
+### v2.5.0 (February 2026)
+- **Improved: Merge Students** - New Step 1 finds duplicate students by uploading the LiveSchool CSV export
+- Identifies students with matching first and last names and displays their IDs
+- Click "Use These IDs" to auto-fill student ID fields in Step 2
+- Steps renumbered from 5 to 6 (new Step 1 + existing Steps 2-6)
 
 ### v2.4.0 (February 2026)
 - **Improved: Merge Students** - Now replays purchase/reward transactions via 2-step API (POST /v2/rewards + PUT /fulfillments/deliver)

@@ -1920,6 +1920,89 @@ h1 {
     grid-template-columns: repeat(4, 1fr);
 }
 
+#merge-duplicate-results {
+    margin-top: 1.5rem;
+}
+
+#merge-duplicate-summary {
+    font-size: 0.95rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+}
+
+#merge-duplicate-summary.has-duplicates {
+    background: #fffbeb;
+    border: 1px solid #fbd38d;
+    color: #744210;
+}
+
+#merge-duplicate-summary.no-duplicates {
+    background: #f0fff4;
+    border: 1px solid #9ae6b4;
+    color: #276749;
+}
+
+.duplicate-group {
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.duplicate-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.duplicate-group-name {
+    font-weight: 600;
+    font-size: 1rem;
+    color: #2d3748;
+}
+
+.duplicate-group-count {
+    font-size: 0.8rem;
+    color: #718096;
+    background: #edf2f7;
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+}
+
+.duplicate-student-ids {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.duplicate-id {
+    background: #ebf8ff;
+    color: #2b6cb0;
+    padding: 0.3rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-family: monospace;
+}
+
+.use-ids-btn {
+    background: #4299e1;
+    color: white;
+    border: none;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.use-ids-btn:hover {
+    background: #3182ce;
+}
+
 @media (max-width: 768px) {
     .merge-stats {
         grid-template-columns: 1fr 1fr;
@@ -1937,5 +2020,11 @@ h1 {
 
     .unmapped-behavior-item .behavior-name {
         min-width: auto;
+    }
+
+    .duplicate-group-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
     }
 }

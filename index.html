@@ -96,6 +96,12 @@
             </div>
             <div class="modal-body changelog-body">
                 <div class="changelog-entry">
+                    <div class="changelog-version">v2.5.0 <span class="changelog-date">February 2026</span></div>
+                    <ul>
+                        <li><strong>Improved: Merge Students</strong> - New Step 1 finds duplicate students by uploading the LiveSchool CSV export</li>
+                        <li>Identifies students with matching first and last names and displays their IDs</li>
+                        <li>Click "Use These IDs" to auto-fill the student ID fields</li>
+                    </ul>
                     <div class="changelog-version">v2.4.0 <span class="changelog-date">February 2026</span></div>
                     <ul>
                         <li><strong>Improved: Merge Students</strong> - Now replays purchase/reward transactions (2-step API: POST /v2/rewards + PUT /fulfillments/deliver)</li>
@@ -247,6 +253,10 @@
         </div>
         <!-- Merge Students Mode Summary -->
         <div class="summary-content merge-summary hidden">
+            <div class="summary-item" id="merge-summary-duplicates">
+                <span class="summary-icon">○</span>
+                <span class="summary-label">Duplicates</span>
+            </div>
             <div class="summary-item" id="merge-summary-ids">
                 <span class="summary-icon">○</span>
                 <span class="summary-label">Student IDs</span>
@@ -877,10 +887,42 @@
         <!-- MERGE STUDENTS MODE SECTIONS (hidden by default) -->
         <!-- ============================================= -->
 
-        <!-- Merge Step 1: Student IDs & Config -->
+        <!-- Merge Step 1: Find Duplicates -->
+        <section class="step merge-step hidden" id="merge-step-duplicates">
+            <div class="step-header">
+                <h2><span class="step-badge">1</span> Find Duplicates <span class="hint">(optional)</span></h2>
+            </div>
+            <div class="step-content">
+                <p class="step-description">Upload the LiveSchool CSV export of all students at this site to find potential duplicates (same first and last name).</p>
+                <div class="upload-box single" id="merge-csv-dropzone">
+                    <div class="dropzone-content">
+                        <div class="upload-icon csv-icon">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                                <rect x="8" y="4" width="32" height="40" rx="2" fill="#2b6cb0" stroke="#3182ce" stroke-width="2"/>
+                                <text x="24" y="28" text-anchor="middle" fill="white" font-size="10" font-weight="bold">CSV</text>
+                            </svg>
+                        </div>
+                        <label for="merge-csv-file">LiveSchool CSV Export</label>
+                        <input type="file" id="merge-csv-file" accept=".csv">
+                        <button type="button" class="select-file-btn">Select File</button>
+                        <p class="upload-hint">or drag & drop here</p>
+                        <p class="upload-desc">
+                            Standard student export with ID, First Name, Last Name columns
+                        </p>
+                    </div>
+                    <div id="merge-csv-file-status" class="file-status"></div>
+                </div>
+                <div id="merge-duplicate-results" class="hidden">
+                    <div id="merge-duplicate-summary"></div>
+                    <div id="merge-duplicate-list"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Merge Step 2: Student IDs & Config -->
         <section class="step merge-step hidden" id="merge-step-ids">
             <div class="step-header">
-                <h2><span class="step-badge">1</span> Student IDs & Site Config</h2>
+                <h2><span class="step-badge">2</span> Student IDs & Site Config</h2>
             </div>
             <div class="step-content">
                 <p class="step-description">Enter the original (source) and new (target) student IDs, plus site configuration.</p>
@@ -917,10 +959,10 @@
             </div>
         </section>
 
-        <!-- Merge Step 2: Upload Points Log -->
+        <!-- Merge Step 3: Upload Points Log -->
         <section class="step merge-step hidden locked" id="merge-step-upload">
             <div class="step-header">
-                <h2><span class="step-badge">2</span> Upload Points Log</h2>
+                <h2><span class="step-badge">3</span> Upload Points Log</h2>
                 <span class="lock-icon" title="Enter student IDs and site config to unlock">🔒</span>
             </div>
             <div class="step-content">
@@ -947,10 +989,10 @@
             </div>
         </section>
 
-        <!-- Merge Step 3: Behavior Map -->
+        <!-- Merge Step 4: Behavior Map -->
         <section class="step merge-step hidden locked" id="merge-step-behaviors">
             <div class="step-header">
-                <h2><span class="step-badge">3</span> Behavior Map</h2>
+                <h2><span class="step-badge">4</span> Behavior Map</h2>
                 <span class="lock-icon" title="Upload points log to unlock">🔒</span>
             </div>
             <div class="step-content">
@@ -965,10 +1007,10 @@
             </div>
         </section>
 
-        <!-- Merge Step 4: Review Transactions -->
+        <!-- Merge Step 5: Review Transactions -->
         <section class="step merge-step hidden locked" id="merge-step-review">
             <div class="step-header">
-                <h2><span class="step-badge">4</span> Review Transactions</h2>
+                <h2><span class="step-badge">5</span> Review Transactions</h2>
                 <span class="lock-icon" title="Import behavior map to unlock">🔒</span>
             </div>
             <div class="step-content">
@@ -1019,10 +1061,10 @@
             </div>
         </section>
 
-        <!-- Merge Step 5: Generate Script -->
+        <!-- Merge Step 6: Generate Script -->
         <section class="step merge-step hidden locked" id="merge-step-generate">
             <div class="step-header">
-                <h2><span class="step-badge">5</span> Generate Merge Script</h2>
+                <h2><span class="step-badge">6</span> Generate Merge Script</h2>
                 <span class="lock-icon" title="Review transactions to unlock">🔒</span>
             </div>
             <div class="step-content">

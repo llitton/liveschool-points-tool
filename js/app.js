@@ -2917,6 +2917,8 @@ const REWARD_ID = "\${REWARD_ID}";
  */
 const MergeApp = {
     // State
+    siteStudents: [],
+    duplicateGroups: [],
     originalStudentId: null,
     newStudentId: null,
     logData: null,
@@ -2945,7 +2947,39 @@ const MergeApp = {
             }
         });
 
-        // File upload
+        // CSV file upload (Step 1 - Find Duplicates)
+        const csvDropzone = document.getElementById('merge-csv-dropzone');
+        const csvFileInput = document.getElementById('merge-csv-file');
+
+        if (csvDropzone && csvFileInput) {
+            csvDropzone.addEventListener('click', (e) => {
+                if (e.target.closest('.select-file-btn') || e.target === csvDropzone || e.target.closest('.dropzone-content')) {
+                    csvFileInput.click();
+                }
+            });
+
+            csvDropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                csvDropzone.classList.add('dragover');
+            });
+
+            csvDropzone.addEventListener('dragleave', () => {
+                csvDropzone.classList.remove('dragover');
+            });
+
+            csvDropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                csvDropzone.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file) this.handleCsvFile(file);
+            });
+
+            csvFileInput.addEventListener('change', (e) => {
+                if (e.target.files[0]) this.handleCsvFile(e.target.files[0]);
+            });
+        }
+
+        // TSV file upload (Step 3 - Upload Points Log)
         const dropzone = document.getElementById('merge-log-dropzone');
         const fileInput = document.getElementById('merge-log-file');
 
@@ -2994,6 +3028,150 @@ const MergeApp = {
         if (generateBtn) {
             generateBtn.addEventListener('click', () => this.generateScript());
         }
+    },
+
+    handleCsvFile: async function(file) {
+        const statusEl = document.getElementById('merge-csv-file-status');
+        const dropzone = document.getElementById('merge-csv-dropzone');
+
+        statusEl.textContent = 'Parsing...';
+        statusEl.className = 'file-status loading';
+
+        try {
+            this.siteStudents = await Parser.parseLiveSchoolFile(file);
+
+            statusEl.textContent = 'Loaded ' + this.siteStudents.length + ' students';
+            statusEl.className = 'file-status success';
+            dropzone.classList.add('has-file');
+
+            this.findDuplicates();
+        } catch (error) {
+            statusEl.textContent = 'Error: ' + error.message;
+            statusEl.className = 'file-status error';
+        }
+    },
+
+    findDuplicates: function() {
+        // Group students by normalized lastName|firstName key
+        const groups = new Map();
+
+        for (const student of this.siteStudents) {
+            const key = student.lastName + '|' + student.firstName;
+            if (!groups.has(key)) {
+                groups.set(key, []);
+            }
+            groups.get(key).push(student);
+        }
+
+        // Filter to groups with 2+ students (potential duplicates)
+        this.duplicateGroups = [];
+        for (const [key, students] of groups) {
+            if (students.length >= 2) {
+                // Sort by ID ascending (lower ID = older record)
+                students.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+                const parts = key.split('|');
+                this.duplicateGroups.push({
+                    lastName: parts[0],
+                    firstName: parts[1],
+                    students: students
+                });
+            }
+        }
+
+        // Sort groups alphabetically by last name, then first name
+        this.duplicateGroups.sort((a, b) => {
+            const lastCmp = a.lastName.localeCompare(b.lastName);
+            return lastCmp !== 0 ? lastCmp : a.firstName.localeCompare(b.firstName);
+        });
+
+        this.showDuplicates();
+    },
+
+    showDuplicates: function() {
+        const resultsEl = document.getElementById('merge-duplicate-results');
+        const summaryEl = document.getElementById('merge-duplicate-summary');
+        const listEl = document.getElementById('merge-duplicate-list');
+
+        resultsEl.classList.remove('hidden');
+
+        if (this.duplicateGroups.length === 0) {
+            summaryEl.className = 'no-duplicates';
+            summaryEl.textContent = 'No potential duplicates found among ' + this.siteStudents.length + ' students.';
+            listEl.innerHTML = '';
+            return;
+        }
+
+        summaryEl.className = 'has-duplicates';
+        summaryEl.textContent = 'Found ' + this.duplicateGroups.length + ' potential duplicate group' +
+            (this.duplicateGroups.length === 1 ? '' : 's') + ' among ' + this.siteStudents.length + ' students.';
+
+        listEl.innerHTML = this.duplicateGroups.map((group, gIdx) => {
+            const displayName = this.escapeHtml(group.firstName + ' ' + group.lastName);
+            const idsHtml = group.students.map(s =>
+                '<span class="duplicate-id">' + this.escapeHtml(s.id) + '</span>'
+            ).join('');
+
+            // For pairs (most common), show a single "Use These IDs" button
+            // For 3+, show select dropdowns
+            let actionHtml;
+            if (group.students.length === 2) {
+                actionHtml = '<button class="use-ids-btn" onclick="MergeApp.selectDuplicatePair(' + gIdx + ', 0, 1)">Use These IDs &rarr;</button>';
+            } else {
+                // Multiple students — let user pick which two
+                const options = group.students.map((s, i) =>
+                    '<option value="' + i + '">ID: ' + this.escapeHtml(s.id) + '</option>'
+                ).join('');
+                actionHtml = '<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">' +
+                    '<label style="font-size:0.85rem;color:#718096;">Source:</label>' +
+                    '<select id="dup-src-' + gIdx + '" style="padding:0.3rem;border-radius:4px;border:1px solid #e2e8f0;">' + options + '</select>' +
+                    '<label style="font-size:0.85rem;color:#718096;">Target:</label>' +
+                    '<select id="dup-tgt-' + gIdx + '" style="padding:0.3rem;border-radius:4px;border:1px solid #e2e8f0;">' + options.replace('value="0"', 'value="0"').replace('<option value="1"', '<option value="1" selected') + '</select>' +
+                    '<button class="use-ids-btn" onclick="MergeApp.selectDuplicatePairFromDropdowns(' + gIdx + ')">Use Selected &rarr;</button>' +
+                    '</div>';
+            }
+
+            return '<div class="duplicate-group">' +
+                '<div class="duplicate-group-header">' +
+                '<span class="duplicate-group-name">' + displayName + '</span>' +
+                '<span class="duplicate-group-count">' + group.students.length + ' records</span>' +
+                '</div>' +
+                '<div class="duplicate-student-ids">' + idsHtml + actionHtml + '</div>' +
+                '</div>';
+        }).join('');
+    },
+
+    selectDuplicatePair: function(groupIdx, srcIdx, tgtIdx) {
+        const group = this.duplicateGroups[groupIdx];
+        if (!group) return;
+
+        const srcId = group.students[srcIdx].id;
+        const tgtId = group.students[tgtIdx].id;
+
+        document.getElementById('merge-original-id').value = srcId;
+        document.getElementById('merge-new-id').value = tgtId;
+
+        // Trigger input events to update summary
+        document.getElementById('merge-original-id').dispatchEvent(new Event('input'));
+        document.getElementById('merge-new-id').dispatchEvent(new Event('input'));
+
+        // Scroll to Step 2
+        document.getElementById('merge-step-ids').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+
+    selectDuplicatePairFromDropdowns: function(groupIdx) {
+        const srcSelect = document.getElementById('dup-src-' + groupIdx);
+        const tgtSelect = document.getElementById('dup-tgt-' + groupIdx);
+        if (!srcSelect || !tgtSelect) return;
+
+        const srcIdx = parseInt(srcSelect.value);
+        const tgtIdx = parseInt(tgtSelect.value);
+
+        if (srcIdx === tgtIdx) {
+            alert('Source and target must be different students.');
+            return;
+        }
+
+        this.selectDuplicatePair(groupIdx, srcIdx, tgtIdx);
     },
 
     checkIdsComplete: function() {
@@ -3747,6 +3925,16 @@ ${hasRewards ? `
     },
 
     updateSummary: function() {
+        // Duplicates status
+        const dupSummary = document.getElementById('merge-summary-duplicates');
+        if (this.siteStudents.length > 0) {
+            dupSummary.querySelector('.summary-icon').textContent = '✓';
+            dupSummary.querySelector('.summary-icon').classList.add('complete');
+            dupSummary.querySelector('.summary-label').textContent = this.duplicateGroups.length > 0
+                ? `${this.duplicateGroups.length} duplicate${this.duplicateGroups.length === 1 ? '' : 's'}`
+                : 'No duplicates';
+        }
+
         // Student IDs status
         const idsSummary = document.getElementById('merge-summary-ids');
         const originalId = document.getElementById('merge-original-id').value.trim();
@@ -3842,7 +4030,7 @@ const Onboarding = {
     checkFirstVisit: function() {
         const hasVisited = localStorage.getItem('liveschool-points-visited');
         const lastVersion = localStorage.getItem('liveschool-points-version');
-        const currentVersion = '2.4.0';
+        const currentVersion = '2.5.0';
 
         if (!hasVisited) {
             // First visit - show welcome
