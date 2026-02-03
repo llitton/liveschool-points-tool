@@ -1920,6 +1920,75 @@ h1 {
     grid-template-columns: repeat(4, 1fr);
 }
 
+.config-discovery {
+    margin-top: 1.5rem;
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.discovery-part {
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.discovery-part:first-child {
+    margin-top: 0.75rem;
+    padding-top: 0;
+    border-top: none;
+}
+
+.discovery-part h4 {
+    margin-bottom: 0.5rem;
+}
+
+.config-discovery .discovery-actions {
+    position: relative;
+    margin-bottom: 0.75rem;
+}
+
+.config-discovery pre.discovery-code {
+    background: #1a202c;
+    border-radius: 8px;
+    margin: 0;
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+    max-height: 100px;
+}
+
+.config-discovery pre.discovery-code code {
+    color: #e2e8f0;
+    font-family: 'SF Mono', Consolas, Monaco, monospace;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.config-discovery .copy-btn {
+    margin-top: 0.5rem;
+}
+
+.discovery-result {
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.discovery-result.success {
+    background: #f0fff4;
+    border: 1px solid #9ae6b4;
+    color: #276749;
+}
+
+.discovery-result.error {
+    background: #fff5f5;
+    border: 1px solid #feb2b2;
+    color: #822727;
+}
+
 #merge-duplicate-results {
     margin-top: 1.5rem;
 }

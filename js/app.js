@@ -2943,6 +2943,7 @@ const MergeApp = {
                 el.addEventListener('input', () => {
                     this.checkIdsComplete();
                     this.updateSummary();
+                    this.updateLocationScript();
                 });
             }
         });
@@ -3027,6 +3028,47 @@ const MergeApp = {
         const generateBtn = document.getElementById('merge-generate-script');
         if (generateBtn) {
             generateBtn.addEventListener('click', () => this.generateScript());
+        }
+
+        // Config discovery toggle
+        const toggleDiscoveryBtn = document.getElementById('merge-toggle-discovery');
+        if (toggleDiscoveryBtn) {
+            toggleDiscoveryBtn.addEventListener('click', () => {
+                const container = document.getElementById('merge-discovery-container');
+                const isHidden = container.classList.contains('hidden');
+                container.classList.toggle('hidden');
+                toggleDiscoveryBtn.textContent = isHidden ? 'Hide Config Discovery' : 'Show Config Discovery';
+            });
+        }
+
+        // Extract school + roster from pasted fetch
+        const extractIdsBtn = document.getElementById('merge-extract-ids');
+        if (extractIdsBtn) {
+            extractIdsBtn.addEventListener('click', () => this.extractSchoolAndRoster());
+        }
+
+        // Copy location script
+        const copyLocationBtn = document.getElementById('merge-copy-location-script');
+        if (copyLocationBtn) {
+            copyLocationBtn.addEventListener('click', () => {
+                const code = document.getElementById('merge-location-script-code');
+                if (code && code.textContent) {
+                    navigator.clipboard.writeText(code.textContent).then(() => {
+                        copyLocationBtn.textContent = 'Copied!';
+                        copyLocationBtn.classList.add('copied');
+                        setTimeout(() => {
+                            copyLocationBtn.textContent = 'Copy Script';
+                            copyLocationBtn.classList.remove('copied');
+                        }, 2000);
+                    });
+                }
+            });
+        }
+
+        // Extract location from pasted output
+        const extractLocationBtn = document.getElementById('merge-extract-location');
+        if (extractLocationBtn) {
+            extractLocationBtn.addEventListener('click', () => this.extractLocation());
         }
     },
 
@@ -3172,6 +3214,117 @@ const MergeApp = {
         }
 
         this.selectDuplicatePair(groupIdx, srcIdx, tgtIdx);
+    },
+
+    updateLocationScript: function() {
+        const schoolId = document.getElementById('merge-school-id').value.trim();
+        const studentId = document.getElementById('merge-new-id').value.trim() ||
+                          document.getElementById('merge-original-id').value.trim();
+        const scriptContainer = document.getElementById('merge-location-script-container');
+        const placeholder = document.getElementById('merge-location-script-placeholder');
+        const codeEl = document.getElementById('merge-location-script-code');
+
+        if (!scriptContainer || !placeholder || !codeEl) return;
+
+        if (schoolId && studentId) {
+            const script = "fetch('https://api.liveschoolapp.com/v2/conducts?school=" + schoolId +
+                "&student=" + studentId + "&limit=1',{credentials:'include'}).then(r=>r.json()).then(d=>{" +
+                "var items=Object.values(d.items||{});" +
+                "if(items.length>0){console.log(JSON.stringify({locationId:items[0].location.id,locationName:items[0].location.name}))}" +
+                "else{console.log('No conducts found for this student — try a different student ID')}});";
+
+            codeEl.textContent = script;
+            if (typeof Prism !== 'undefined') {
+                Prism.highlightElement(codeEl);
+            }
+            scriptContainer.classList.remove('hidden');
+            placeholder.classList.add('hidden');
+        } else {
+            scriptContainer.classList.add('hidden');
+            placeholder.classList.remove('hidden');
+        }
+    },
+
+    extractSchoolAndRoster: function() {
+        const text = document.getElementById('merge-discovery-fetch').value;
+        const resultEl = document.getElementById('merge-discovery-ids-result');
+
+        if (!text.trim()) {
+            alert('Please paste the copied fetch call first.');
+            return;
+        }
+
+        // Extract schoolIds from the body
+        const schoolMatch = text.match(/schoolIds[^[]*\[(\d+)/);
+        const rosterMatch = text.match(/soft_roster[^[]*objects[^[]*\[(\d+)/);
+
+        const found = [];
+
+        if (schoolMatch) {
+            document.getElementById('merge-school-id').value = schoolMatch[1];
+            document.getElementById('merge-school-id').dispatchEvent(new Event('input'));
+            found.push('School ID: ' + schoolMatch[1]);
+        }
+
+        if (rosterMatch) {
+            document.getElementById('merge-roster-id').value = rosterMatch[1];
+            document.getElementById('merge-roster-id').dispatchEvent(new Event('input'));
+            found.push('Roster ID: ' + rosterMatch[1]);
+        }
+
+        resultEl.classList.remove('hidden');
+        if (found.length > 0) {
+            resultEl.className = 'discovery-result success';
+            resultEl.textContent = 'Found: ' + found.join(', ');
+        } else {
+            resultEl.className = 'discovery-result error';
+            resultEl.textContent = 'Could not find School ID or Roster ID. Make sure you copied the fetch call for the "metrics-new" request.';
+        }
+    },
+
+    extractLocation: function() {
+        const text = document.getElementById('merge-discovery-location').value.trim();
+        const resultEl = document.getElementById('merge-discovery-location-result');
+
+        if (!text) {
+            alert('Please paste the console output first.');
+            return;
+        }
+
+        try {
+            const data = JSON.parse(text);
+
+            if (data.locationId) {
+                document.getElementById('merge-location-id').value = data.locationId;
+                document.getElementById('merge-location-id').dispatchEvent(new Event('input'));
+
+                resultEl.classList.remove('hidden');
+                resultEl.className = 'discovery-result success';
+                resultEl.textContent = 'Found: Location ID: ' + data.locationId +
+                    (data.locationName ? ' (' + data.locationName + ')' : '');
+            } else {
+                resultEl.classList.remove('hidden');
+                resultEl.className = 'discovery-result error';
+                resultEl.textContent = 'No location ID found in the output. The student may not have any conduct records.';
+            }
+        } catch (e) {
+            // Try to extract locationId from raw text (in case output has extra console noise)
+            const match = text.match(/"locationId"\s*:\s*(\d+)/);
+            if (match) {
+                document.getElementById('merge-location-id').value = match[1];
+                document.getElementById('merge-location-id').dispatchEvent(new Event('input'));
+
+                const nameMatch = text.match(/"locationName"\s*:\s*"([^"]+)"/);
+                resultEl.classList.remove('hidden');
+                resultEl.className = 'discovery-result success';
+                resultEl.textContent = 'Found: Location ID: ' + match[1] +
+                    (nameMatch ? ' (' + nameMatch[1] + ')' : '');
+            } else {
+                resultEl.classList.remove('hidden');
+                resultEl.className = 'discovery-result error';
+                resultEl.textContent = 'Could not parse the output. Make sure you copied the JSON output from the console.';
+            }
+        }
     },
 
     checkIdsComplete: function() {
@@ -4030,7 +4183,7 @@ const Onboarding = {
     checkFirstVisit: function() {
         const hasVisited = localStorage.getItem('liveschool-points-visited');
         const lastVersion = localStorage.getItem('liveschool-points-version');
-        const currentVersion = '2.5.0';
+        const currentVersion = '2.6.0';
 
         if (!hasVisited) {
             // First visit - show welcome

@@ -670,6 +670,12 @@ First-visit and version tracking uses localStorage keys:
 
 ## Changelog
 
+### v2.6.0 (February 2026)
+- **Improved: Merge Students** - Config auto-discovery in Step 2
+- Paste the `metrics-new` fetch call from DevTools to auto-extract School ID and Roster ID
+- Auto-generated console script discovers Location ID from existing student conducts (read-only, no sample point needed)
+- Collapsible "Show Config Discovery" section with two-part workflow
+
 ### v2.5.0 (February 2026)
 - **Improved: Merge Students** - New Step 1 finds duplicate students by uploading the LiveSchool CSV export
 - Identifies students with matching first and last names and displays their IDs

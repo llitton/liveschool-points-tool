@@ -96,6 +96,12 @@
             </div>
             <div class="modal-body changelog-body">
                 <div class="changelog-entry">
+                    <div class="changelog-version">v2.6.0 <span class="changelog-date">February 2026</span></div>
+                    <ul>
+                        <li><strong>Improved: Merge Students</strong> - Config auto-discovery: extract School ID, Roster ID, and Location ID without giving a sample point</li>
+                        <li>Paste the <code>metrics-new</code> fetch from DevTools to extract School + Roster IDs</li>
+                        <li>Auto-generated console script discovers Location ID from existing student conducts</li>
+                    </ul>
                     <div class="changelog-version">v2.5.0 <span class="changelog-date">February 2026</span></div>
                     <ul>
                         <li><strong>Improved: Merge Students</strong> - New Step 1 finds duplicate students by uploading the LiveSchool CSV export</li>
@@ -954,6 +960,41 @@
                     <div class="config-field">
                         <label for="merge-user-id">User ID <span class="hint">(optional — for purchases)</span></label>
                         <input type="text" id="merge-user-id" placeholder="e.g., 123456">
+                    </div>
+                </div>
+
+                <div class="config-discovery">
+                    <button id="merge-toggle-discovery" class="btn secondary">Show Config Discovery</button>
+
+                    <div id="merge-discovery-container" class="hidden">
+                        <div class="discovery-part">
+                            <h4>Step A: School ID & Roster ID</h4>
+                            <p class="hint">In LiveSchool, open DevTools (F12) &gt; Network tab &gt; refresh the Points page &gt; find the request to <code>metrics-new</code> &gt; right-click it &gt; Copy &gt; Copy as fetch. Paste below:</p>
+                            <div class="import-row">
+                                <textarea id="merge-discovery-fetch" placeholder="Paste the copied fetch call here..." rows="3"></textarea>
+                                <button id="merge-extract-ids" class="btn primary">Extract IDs</button>
+                            </div>
+                            <div id="merge-discovery-ids-result" class="hidden"></div>
+                        </div>
+
+                        <div class="discovery-part">
+                            <h4>Step B: Location ID</h4>
+                            <p class="hint">Copy this script, run it in the LiveSchool browser console, then paste the output below:</p>
+                            <div id="merge-location-script-container" class="hidden">
+                                <div class="discovery-actions">
+                                    <pre class="discovery-code"><code id="merge-location-script-code"></code></pre>
+                                    <button id="merge-copy-location-script" class="copy-btn">Copy Script</button>
+                                </div>
+                            </div>
+                            <div id="merge-location-script-placeholder">
+                                <p class="hint">Enter a School ID and a Student ID above to generate the discovery script.</p>
+                            </div>
+                            <div class="import-row">
+                                <textarea id="merge-discovery-location" placeholder="Paste the console output here..." rows="3"></textarea>
+                                <button id="merge-extract-location" class="btn primary">Extract Location</button>
+                            </div>
+                            <div id="merge-discovery-location-result" class="hidden"></div>
+                        </div>
                     </div>
                 </div>
             </div>
