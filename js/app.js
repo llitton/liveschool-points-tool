@@ -3382,6 +3382,9 @@ const MergeApp = {
         const locationId = document.getElementById('merge-location-id').value.trim();
         const schoolId = document.getElementById('merge-school-id').value.trim();
 
+        // Update the behavior fetch script with the actual school ID
+        this.updateBehaviorFetchScript(schoolId);
+
         if (originalId && newId && rosterId && locationId && schoolId) {
             const prevOriginalId = this.originalStudentId;
             this.originalStudentId = originalId;
@@ -3393,6 +3396,19 @@ const MergeApp = {
                 this.recomputePerFileMatches();
                 this.filterAndUpdateLogData();
             }
+        }
+    },
+
+    updateBehaviorFetchScript: function(schoolId) {
+        const scriptEl = document.getElementById('merge-behavior-fetch-script');
+        const textareaEl = document.getElementById('merge-behavior-json');
+        const idDisplay = schoolId || '{schoolId}';
+
+        if (scriptEl) {
+            scriptEl.textContent = "fetch('/v2/schools/" + idDisplay + "/behaviors', {credentials:'include'}).then(r=>r.json()).then(d=>console.log(JSON.stringify(d)))";
+        }
+        if (textareaEl && !textareaEl.value) {
+            textareaEl.placeholder = 'Paste the JSON response from /v2/schools/' + idDisplay + '/behaviors here...';
         }
     },
 
