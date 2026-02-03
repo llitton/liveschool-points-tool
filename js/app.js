@@ -1232,6 +1232,7 @@ const DemoApp = {
         document.querySelector('.assign-summary').classList.toggle('hidden', mode !== 'assign');
         document.querySelector('.demo-summary').classList.toggle('hidden', mode !== 'demo');
         document.querySelector('.balance-summary').classList.toggle('hidden', mode !== 'balance');
+        document.querySelector('.merge-summary').classList.toggle('hidden', mode !== 'merge');
 
         // Show/hide appropriate sections
         document.querySelectorAll('.assign-step').forEach(el => {
@@ -1242,6 +1243,9 @@ const DemoApp = {
         });
         document.querySelectorAll('.balance-step').forEach(el => {
             el.classList.toggle('hidden', mode !== 'balance');
+        });
+        document.querySelectorAll('.merge-step').forEach(el => {
+            el.classList.toggle('hidden', mode !== 'merge');
         });
     },
 
@@ -2909,6 +2913,634 @@ const REWARD_ID = "\${REWARD_ID}";
 };
 
 /**
+ * Merge Students Mode
+ */
+const MergeApp = {
+    // State
+    originalStudentId: null,
+    newStudentId: null,
+    logData: null,
+    behaviorMap: [],
+    behaviorNameToId: {},
+    transactionGroups: [],
+    unmappedBehaviors: [],
+    manualBehaviorMaps: {},
+    skippedRewards: 0,
+
+    init: function() {
+        this.bindEvents();
+    },
+
+    bindEvents: function() {
+        // Student IDs and config field changes
+        ['merge-original-id', 'merge-new-id', 'merge-roster-id', 'merge-location-id', 'merge-school-id'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', () => {
+                    this.checkIdsComplete();
+                    this.updateSummary();
+                });
+            }
+        });
+
+        // File upload
+        const dropzone = document.getElementById('merge-log-dropzone');
+        const fileInput = document.getElementById('merge-log-file');
+
+        if (dropzone && fileInput) {
+            dropzone.addEventListener('click', (e) => {
+                if (e.target.closest('.select-file-btn') || e.target === dropzone || e.target.closest('.dropzone-content')) {
+                    fileInput.click();
+                }
+            });
+
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('dragover');
+            });
+
+            dropzone.addEventListener('dragleave', () => {
+                dropzone.classList.remove('dragover');
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file) this.handleLogFile(file);
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files[0]) this.handleLogFile(e.target.files[0]);
+            });
+        }
+
+        // Import behaviors button
+        const importBtn = document.getElementById('merge-import-behaviors');
+        if (importBtn) {
+            importBtn.addEventListener('click', () => this.importBehaviors());
+        }
+
+        // Parse transactions button
+        const parseBtn = document.getElementById('merge-parse-transactions');
+        if (parseBtn) {
+            parseBtn.addEventListener('click', () => this.parseTransactions());
+        }
+
+        // Generate script button
+        const generateBtn = document.getElementById('merge-generate-script');
+        if (generateBtn) {
+            generateBtn.addEventListener('click', () => this.generateScript());
+        }
+    },
+
+    checkIdsComplete: function() {
+        const originalId = document.getElementById('merge-original-id').value.trim();
+        const newId = document.getElementById('merge-new-id').value.trim();
+        const rosterId = document.getElementById('merge-roster-id').value.trim();
+        const locationId = document.getElementById('merge-location-id').value.trim();
+        const schoolId = document.getElementById('merge-school-id').value.trim();
+
+        if (originalId && newId && rosterId && locationId && schoolId) {
+            this.originalStudentId = originalId;
+            this.newStudentId = newId;
+            this.unlockStep('merge-step-upload');
+        }
+    },
+
+    unlockStep: function(stepId) {
+        const step = document.getElementById(stepId);
+        if (step) {
+            step.classList.remove('locked');
+        }
+    },
+
+    handleLogFile: async function(file) {
+        const statusEl = document.getElementById('merge-log-file-status');
+        const dropzone = document.getElementById('merge-log-dropzone');
+
+        statusEl.textContent = 'Parsing...';
+        statusEl.className = 'file-status loading';
+
+        try {
+            this.logData = await Parser.parsePointsLog(file);
+
+            const behaviorRows = this.logData.rows.filter(r => r['Type'] === 'Behavior');
+            const rewardRows = this.logData.rows.filter(r => r['Type'] === 'Reward');
+
+            statusEl.textContent = `Loaded ${this.logData.rows.length} rows (${behaviorRows.length} behaviors, ${rewardRows.length} rewards)`;
+            statusEl.className = 'file-status success';
+            dropzone.classList.add('has-file');
+
+            this.unlockStep('merge-step-behaviors');
+            this.updateSummary();
+        } catch (error) {
+            statusEl.textContent = 'Error: ' + error.message;
+            statusEl.className = 'file-status error';
+        }
+    },
+
+    importBehaviors: function() {
+        const jsonText = document.getElementById('merge-behavior-json').value.trim();
+        if (!jsonText) {
+            alert('Please paste the behavior JSON first');
+            return;
+        }
+
+        try {
+            this.behaviorMap = Parser.parseBehaviorJson(jsonText);
+
+            if (this.behaviorMap.length === 0) {
+                alert('No behaviors found in the JSON. Check the format.');
+                return;
+            }
+
+            // Build name-to-ID lookup (normalized lowercase + trimmed)
+            this.behaviorNameToId = {};
+            this.behaviorMap.forEach(b => {
+                const key = b.name.toLowerCase().trim();
+                this.behaviorNameToId[key] = { id: b.id, type: b.type };
+            });
+
+            // Display imported behaviors
+            const listEl = document.getElementById('merge-behavior-list');
+            const itemsEl = document.getElementById('merge-behavior-items');
+            const countEl = document.getElementById('merge-behavior-count');
+
+            countEl.textContent = this.behaviorMap.length;
+            itemsEl.innerHTML = this.behaviorMap.map(b => `
+                <div class="merge-behavior-chip">
+                    <span>${this.escapeHtml(b.name)}</span>
+                    <span class="behavior-type-badge ${b.type}">${b.type}</span>
+                </div>
+            `).join('');
+
+            listEl.classList.remove('hidden');
+            this.unlockStep('merge-step-review');
+            this.updateSummary();
+        } catch (error) {
+            alert('Failed to parse behavior JSON: ' + error.message);
+        }
+    },
+
+    parseTransactions: function() {
+        if (!this.logData || !this.logData.rows.length) {
+            alert('No points log data. Please upload the export first.');
+            return;
+        }
+
+        if (Object.keys(this.behaviorNameToId).length === 0) {
+            alert('No behaviors imported. Please import the behavior JSON first.');
+            return;
+        }
+
+        // Reset state
+        this.transactionGroups = [];
+        this.unmappedBehaviors = [];
+        this.skippedRewards = 0;
+        const unmappedSet = new Set();
+
+        // Group rows by Record ID
+        const groupMap = new Map();
+
+        for (const row of this.logData.rows) {
+            if (row['Type'] === 'Reward') {
+                this.skippedRewards++;
+                continue;
+            }
+
+            const recordId = row['Record ID'];
+            if (!recordId) continue;
+
+            if (!groupMap.has(recordId)) {
+                groupMap.set(recordId, []);
+            }
+            groupMap.get(recordId).push(row);
+        }
+
+        // Process each group
+        let mappedCount = 0;
+
+        for (const [recordId, rows] of groupMap) {
+            const firstRow = rows[0];
+            const date = this.formatDate(firstRow['Official Date'] || '');
+            const time = this.formatTime(firstRow['Official Time'] || '');
+
+            // Collect comment from any row in the group
+            let comment = '';
+            for (const row of rows) {
+                if (row['Comment'] && row['Comment'].trim()) {
+                    comment = row['Comment'].trim();
+                    break;
+                }
+            }
+
+            // Build behaviors object
+            const behaviors = {};
+            const behaviorNames = [];
+            let allMapped = true;
+
+            for (const row of rows) {
+                const behaviorName = (row['Behavior / Reward Name'] || '').trim();
+                if (!behaviorName) continue;
+
+                const key = behaviorName.toLowerCase().trim();
+                const mapped = this.behaviorNameToId[key] || this.manualBehaviorMaps[key];
+
+                if (mapped) {
+                    behaviors[mapped.id] = { type: mapped.type };
+                    behaviorNames.push(behaviorName);
+                    mappedCount++;
+                } else {
+                    allMapped = false;
+                    if (!unmappedSet.has(key)) {
+                        unmappedSet.add(key);
+                        this.unmappedBehaviors.push(behaviorName);
+                    }
+                }
+            }
+
+            if (allMapped && Object.keys(behaviors).length > 0) {
+                this.transactionGroups.push({
+                    recordId,
+                    date,
+                    time,
+                    comment,
+                    behaviors,
+                    behaviorNames
+                });
+            }
+        }
+
+        // Update summary stats
+        const summaryEl = document.getElementById('merge-transaction-summary');
+        summaryEl.classList.remove('hidden');
+        document.getElementById('merge-mapped-count').textContent = mappedCount;
+        document.getElementById('merge-unmapped-count').textContent = this.unmappedBehaviors.length;
+        document.getElementById('merge-group-count').textContent = this.transactionGroups.length;
+        document.getElementById('merge-skipped-count').textContent = this.skippedRewards;
+
+        // Show unmapped behaviors if any
+        if (this.unmappedBehaviors.length > 0) {
+            this.showUnmappedBehaviors();
+        } else {
+            document.getElementById('merge-unmapped-behaviors').classList.add('hidden');
+            this.showTransactionGroups();
+            this.unlockStep('merge-step-generate');
+        }
+
+        this.updateSummary();
+    },
+
+    showUnmappedBehaviors: function() {
+        const container = document.getElementById('merge-unmapped-behaviors');
+        const itemsEl = document.getElementById('merge-unmapped-items');
+        container.classList.remove('hidden');
+
+        // Build dropdown options from all known behaviors
+        const optionsHtml = this.behaviorMap
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map(b => `<option value="${b.id}" data-type="${b.type}">${this.escapeHtml(b.name)} (${b.id})</option>`)
+            .join('');
+
+        itemsEl.innerHTML = this.unmappedBehaviors.map((name, idx) => `
+            <div class="unmapped-behavior-item" id="unmapped-merge-${idx}">
+                <span class="behavior-name">${this.escapeHtml(name)}</span>
+                <select id="unmapped-merge-select-${idx}">
+                    <option value="">-- Select behavior --</option>
+                    ${optionsHtml}
+                    <option value="skip">Skip this behavior</option>
+                </select>
+                <button class="btn secondary" onclick="MergeApp.resolveUnmappedBehavior(${idx})">Confirm</button>
+            </div>
+        `).join('');
+    },
+
+    resolveUnmappedBehavior: function(idx) {
+        const select = document.getElementById(`unmapped-merge-select-${idx}`);
+        const itemEl = document.getElementById(`unmapped-merge-${idx}`);
+        const value = select.value;
+
+        if (!value) return;
+
+        const behaviorName = this.unmappedBehaviors[idx];
+        const key = behaviorName.toLowerCase().trim();
+
+        if (value === 'skip') {
+            this.manualBehaviorMaps[key] = null;
+        } else {
+            const selectedOption = select.options[select.selectedIndex];
+            const type = selectedOption.dataset.type || 'merit';
+            this.manualBehaviorMaps[key] = { id: value, type };
+        }
+
+        itemEl.classList.add('resolved');
+
+        // Check if all unmapped are resolved
+        const allResolved = this.unmappedBehaviors.every((name, i) => {
+            const k = name.toLowerCase().trim();
+            return k in this.manualBehaviorMaps;
+        });
+
+        if (allResolved) {
+            // Re-parse with manual mappings
+            this.parseTransactions();
+        }
+    },
+
+    showTransactionGroups: function() {
+        const tableEl = document.getElementById('merge-transaction-table');
+        const listEl = document.getElementById('merge-groups-list');
+        const totalEl = document.getElementById('merge-groups-total');
+
+        tableEl.classList.remove('hidden');
+        totalEl.textContent = this.transactionGroups.length;
+
+        // Show first 50 groups
+        const displayGroups = this.transactionGroups.slice(0, 50);
+
+        listEl.innerHTML = displayGroups.map(g => `
+            <div class="merge-group-item">
+                <span class="group-date">${this.escapeHtml(g.date)} ${this.escapeHtml(g.time)}</span>
+                <span class="group-behaviors">${this.escapeHtml(g.behaviorNames.join(', '))}</span>
+                ${g.comment ? `<span class="group-comment" title="${this.escapeHtml(g.comment)}">${this.escapeHtml(g.comment)}</span>` : ''}
+            </div>
+        `).join('');
+    },
+
+    formatDate: function(dateStr) {
+        if (!dateStr) return '';
+        // If already YYYY-MM-DD, return as-is
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+        // Handle MM/DD/YYYY
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+            return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+        }
+        return dateStr;
+    },
+
+    formatTime: function(timeStr) {
+        if (!timeStr) return '';
+        // If already HH:MM:SS 24-hour, return as-is
+        if (/^\d{1,2}:\d{2}:\d{2}$/.test(timeStr) && !timeStr.match(/[APap]/)) {
+            const parts = timeStr.split(':');
+            return `${parts[0].padStart(2, '0')}:${parts[1]}:${parts[2]}`;
+        }
+        // Handle 12-hour format
+        const match = timeStr.match(/^(\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)?$/i);
+        if (!match) return timeStr;
+        let hours = parseInt(match[1]);
+        const minutes = match[2];
+        const seconds = match[3];
+        const period = (match[4] || '').toUpperCase();
+        if (period === 'PM' && hours < 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+        return `${String(hours).padStart(2, '0')}:${minutes}:${seconds}`;
+    },
+
+    generateScript: function() {
+        const rosterId = document.getElementById('merge-roster-id').value.trim();
+        const locationId = document.getElementById('merge-location-id').value.trim();
+        const schoolId = document.getElementById('merge-school-id').value.trim();
+        const newId = document.getElementById('merge-new-id').value.trim();
+        const originalId = document.getElementById('merge-original-id').value.trim();
+
+        if (!rosterId || !locationId || !schoolId || !newId) {
+            alert('Please fill in all configuration fields');
+            return;
+        }
+
+        if (this.transactionGroups.length === 0) {
+            alert('No transaction groups to replay. Please parse transactions first.');
+            return;
+        }
+
+        const script = this.buildMergeScript({
+            originalId,
+            newId,
+            rosterId,
+            locationId,
+            schoolId,
+            groups: this.transactionGroups
+        });
+
+        const container = document.getElementById('merge-scripts-output');
+        container.innerHTML = `
+            <div class="script-block">
+                <h4>
+                    <span>Merge Script (${this.transactionGroups.length} API calls, student ${this.escapeHtml(originalId)} → ${this.escapeHtml(newId)})</span>
+                    <div class="script-actions">
+                        <button class="copy-btn" id="copy-merge-script">Copy</button>
+                        <button class="download-btn" id="download-merge-script">Download</button>
+                    </div>
+                </h4>
+                <pre><code class="language-javascript">${this.escapeHtml(script)}</code></pre>
+            </div>
+        `;
+
+        // Bind copy button
+        document.getElementById('copy-merge-script').addEventListener('click', (e) => {
+            navigator.clipboard.writeText(script).then(() => {
+                e.target.textContent = 'Copied!';
+                e.target.classList.add('copied');
+                setTimeout(() => {
+                    e.target.textContent = 'Copy';
+                    e.target.classList.remove('copied');
+                }, 2000);
+            });
+        });
+
+        // Bind download button
+        document.getElementById('download-merge-script').addEventListener('click', () => {
+            const blob = new Blob([script], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `merge_student_${originalId}_to_${newId}_${new Date().toISOString().split('T')[0]}.js`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        if (typeof Prism !== 'undefined') {
+            Prism.highlightAll();
+        }
+    },
+
+    buildMergeScript: function(config) {
+        const groupsJson = JSON.stringify(config.groups.map(g => ({
+            recordId: g.recordId,
+            date: g.date,
+            time: g.time,
+            comment: g.comment,
+            behaviors: g.behaviors,
+            label: g.behaviorNames.join(', ')
+        })), null, 2);
+
+        return `// =============================================================
+// LiveSchool Student Merge Script
+// Generated: ${new Date().toISOString()}
+//
+// Original Student: ${config.originalId} (source)
+// New Student: ${config.newId} (target)
+// Transaction Groups: ${config.groups.length}
+// School: ${config.schoolId}
+//
+// HOW TO USE:
+// 1. Log into liveschoolapp.com in Chrome
+// 2. Open DevTools (Cmd+Option+J)
+// 3. Paste this script and press Enter
+// =============================================================
+
+const CONFIG = {
+    newStudentId: ${config.newId},
+    roster: ${config.rosterId},
+    location: ${config.locationId},
+    school: ${config.schoolId}
+};
+
+const TRANSACTION_GROUPS = ${groupsJson};
+
+const REQUEST_DELAY = 1500;
+const RETRY_ATTEMPTS = 3;
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function replayTransaction(group, index, total, attempt) {
+    attempt = attempt || 1;
+
+    const payload = {
+        time: group.time,
+        date: group.date,
+        roster: CONFIG.roster,
+        location: CONFIG.location,
+        students: [CONFIG.newStudentId],
+        school: CONFIG.school,
+        behaviors: group.behaviors
+    };
+
+    if (group.comment) {
+        payload.comment = group.comment;
+    }
+
+    try {
+        const response = await fetch("https://api.liveschoolapp.com/v2/conducts", {
+            method: "POST",
+            credentials: "include",
+            headers: {
+                "accept": "application/json, text/plain, */*",
+                "content-type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            throw new Error("HTTP " + response.status);
+        }
+
+        console.log(
+            "%c\\u2713 [" + (index + 1) + "/" + total + "]%c " +
+            group.date + " " + group.time + " — " + group.label +
+            (group.comment ? ' | "' + group.comment + '"' : ""),
+            "color: green; font-weight: bold;",
+            "color: inherit;"
+        );
+        return { success: true };
+    } catch (error) {
+        if (attempt < RETRY_ATTEMPTS) {
+            console.warn("Retry " + (attempt + 1) + " for Record " + group.recordId + "...");
+            await sleep(2000 * attempt);
+            return replayTransaction(group, index, total, attempt + 1);
+        }
+        console.error("\\u2717 [" + (index + 1) + "/" + total + "] Record " + group.recordId + " — " + error.message);
+        return { success: false, recordId: group.recordId, error: error.message };
+    }
+}
+
+(async () => {
+    console.log("%c=== LiveSchool Student Merge ===", "font-weight: bold; font-size: 14px;");
+    console.log("Target student: " + CONFIG.newStudentId);
+    console.log("Transactions to replay: " + TRANSACTION_GROUPS.length);
+    console.log("Estimated time: ~" + Math.round(TRANSACTION_GROUPS.length * REQUEST_DELAY / 1000) + "s\\n");
+
+    var successCount = 0;
+    var failures = [];
+
+    for (var i = 0; i < TRANSACTION_GROUPS.length; i++) {
+        var result = await replayTransaction(TRANSACTION_GROUPS[i], i, TRANSACTION_GROUPS.length);
+        if (result.success) {
+            successCount++;
+        } else {
+            failures.push(result);
+        }
+
+        if (i < TRANSACTION_GROUPS.length - 1) {
+            await sleep(REQUEST_DELAY);
+        }
+    }
+
+    console.log("\\n%c=== Results ===", "font-weight: bold; font-size: 14px;");
+    console.log("%c" + successCount + " succeeded", "color: green; font-weight: bold;");
+    if (failures.length > 0) {
+        console.log("%c" + failures.length + " failed", "color: red; font-weight: bold;");
+        console.log("Failed records:", failures.map(function(f) { return f.recordId; }));
+    }
+    console.log("Total: " + TRANSACTION_GROUPS.length);
+    console.log("Student merge complete!");
+})();
+`;
+    },
+
+    updateSummary: function() {
+        // Student IDs status
+        const idsSummary = document.getElementById('merge-summary-ids');
+        const originalId = document.getElementById('merge-original-id').value.trim();
+        const newId = document.getElementById('merge-new-id').value.trim();
+        const rosterId = document.getElementById('merge-roster-id').value.trim();
+        const locationId = document.getElementById('merge-location-id').value.trim();
+        const schoolId = document.getElementById('merge-school-id').value.trim();
+
+        if (originalId && newId && rosterId && locationId && schoolId) {
+            idsSummary.querySelector('.summary-icon').textContent = '✓';
+            idsSummary.querySelector('.summary-icon').classList.add('complete');
+            idsSummary.querySelector('.summary-label').textContent = `${originalId} → ${newId}`;
+        }
+
+        // Points log status
+        const logSummary = document.getElementById('merge-summary-log');
+        if (this.logData) {
+            logSummary.querySelector('.summary-icon').textContent = '✓';
+            logSummary.querySelector('.summary-icon').classList.add('complete');
+            logSummary.querySelector('.summary-label').textContent = `${this.logData.rows.length} rows`;
+        }
+
+        // Behaviors status
+        const behaviorsSummary = document.getElementById('merge-summary-behaviors');
+        if (this.behaviorMap.length > 0) {
+            behaviorsSummary.querySelector('.summary-icon').textContent = '✓';
+            behaviorsSummary.querySelector('.summary-icon').classList.add('complete');
+            behaviorsSummary.querySelector('.summary-label').textContent = `${this.behaviorMap.length} behaviors`;
+        }
+
+        // Mapped status
+        const mappedSummary = document.getElementById('merge-summary-mapped');
+        if (this.transactionGroups.length > 0) {
+            mappedSummary.querySelector('.summary-icon').textContent = '✓';
+            mappedSummary.querySelector('.summary-icon').classList.add('complete');
+            mappedSummary.querySelector('.summary-label').textContent = `${this.transactionGroups.length} groups`;
+        }
+    },
+
+    escapeHtml: function(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+};
+
+/**
  * Onboarding and Modals
  */
 const Onboarding = {
@@ -2956,7 +3588,7 @@ const Onboarding = {
     checkFirstVisit: function() {
         const hasVisited = localStorage.getItem('liveschool-points-visited');
         const lastVersion = localStorage.getItem('liveschool-points-version');
-        const currentVersion = '2.2.2';
+        const currentVersion = '2.3.0';
 
         if (!hasVisited) {
             // First visit - show welcome
@@ -2990,6 +3622,7 @@ document.addEventListener('DOMContentLoaded', () => {
     App.init();
     DemoApp.init();
     BalanceApp.init();
+    MergeApp.init();
     Onboarding.init();
 
     // Settings dropdown toggle

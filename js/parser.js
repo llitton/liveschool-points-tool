@@ -329,5 +329,80 @@ const Parser = {
         }
 
         return students;
+    },
+
+    /**
+     * Parse the LiveSchool extended data export (tab-separated)
+     * @param {File} file - The TSV file with transaction history
+     * @returns {Promise<{headers: string[], rows: Array<Object>}>}
+     */
+    parsePointsLog: function(file) {
+        return new Promise((resolve, reject) => {
+            Papa.parse(file, {
+                delimiter: '\t',
+                complete: function(results) {
+                    try {
+                        const rawRows = results.data;
+                        if (rawRows.length < 2) {
+                            reject(new Error('File must have at least a header row and one data row'));
+                            return;
+                        }
+
+                        const headers = rawRows[0].map(h => String(h || '').trim());
+                        const dataRows = [];
+
+                        for (let i = 1; i < rawRows.length; i++) {
+                            const raw = rawRows[i];
+                            if (!raw || raw.length < 2 || !raw.some(cell => cell)) continue;
+
+                            const row = {};
+                            headers.forEach((h, idx) => {
+                                row[h] = String(raw[idx] || '').trim();
+                            });
+                            dataRows.push(row);
+                        }
+
+                        resolve({ headers, rows: dataRows });
+                    } catch (error) {
+                        reject(new Error('Failed to parse points log: ' + error.message));
+                    }
+                },
+                error: function(error) {
+                    reject(new Error('Failed to parse file: ' + error.message));
+                }
+            });
+        });
+    },
+
+    /**
+     * Parse the behavior JSON from GET /v2/schools/{schoolId}/behaviors
+     * @param {string} jsonString - Raw JSON string from the API
+     * @returns {Array<{id: string, name: string, type: string}>}
+     */
+    parseBehaviorJson: function(jsonString) {
+        const data = JSON.parse(jsonString);
+        const behaviors = [];
+
+        if (data && data.items) {
+            for (const [id, item] of Object.entries(data.items)) {
+                if (item.hidden) continue;
+                behaviors.push({
+                    id: String(id),
+                    name: String(item.name || '').trim(),
+                    type: item.type === 'negative' ? 'demerit' : 'merit'
+                });
+            }
+        } else if (Array.isArray(data)) {
+            for (const item of data) {
+                if (item.hidden) continue;
+                behaviors.push({
+                    id: String(item.id),
+                    name: String(item.name || '').trim(),
+                    type: item.type === 'negative' ? 'demerit' : 'merit'
+                });
+            }
+        }
+
+        return behaviors;
     }
 };

@@ -193,6 +193,53 @@
         });
 
         // ============================================
+        // Parser.parseBehaviorJson Tests
+        // ============================================
+
+        test('Parser.parseBehaviorJson - parses items object format', () => {
+            const json = JSON.stringify({
+                items: {
+                    "146500": { id: 146500, name: "Arrives 2 minutes early", type: "positive", hidden: false, amount: "1.00" },
+                    "157288": { id: 157288, name: "Negative Nonsense", type: "negative", hidden: false, amount: "1.00" },
+                    "999": { id: 999, name: "Hidden Behavior", type: "positive", hidden: true, amount: "1.00" }
+                }
+            });
+            const behaviors = Parser.parseBehaviorJson(json);
+            assertEqual(behaviors.length, 2, 'Should have 2 behaviors (hidden one skipped)');
+            assertEqual(behaviors[0].id, '146500', 'First behavior ID');
+            assertEqual(behaviors[0].name, 'Arrives 2 minutes early', 'First behavior name');
+            assertEqual(behaviors[0].type, 'merit', 'Positive type maps to merit');
+            assertEqual(behaviors[1].type, 'demerit', 'Negative type maps to demerit');
+        });
+
+        test('Parser.parseBehaviorJson - parses array format', () => {
+            const json = JSON.stringify([
+                { id: 100, name: "Test Merit", type: "positive", hidden: false },
+                { id: 200, name: "Test Demerit", type: "negative", hidden: false }
+            ]);
+            const behaviors = Parser.parseBehaviorJson(json);
+            assertEqual(behaviors.length, 2, 'Should have 2 behaviors');
+            assertEqual(behaviors[0].type, 'merit', 'Positive maps to merit');
+            assertEqual(behaviors[1].type, 'demerit', 'Negative maps to demerit');
+        });
+
+        test('Parser.parseBehaviorJson - trims behavior names', () => {
+            const json = JSON.stringify({
+                items: {
+                    "100": { id: 100, name: "  Positive Power  ", type: "positive", hidden: false }
+                }
+            });
+            const behaviors = Parser.parseBehaviorJson(json);
+            assertEqual(behaviors[0].name, 'Positive Power', 'Name should be trimmed');
+        });
+
+        test('Parser.parseBehaviorJson - handles empty items', () => {
+            const json = JSON.stringify({ items: {} });
+            const behaviors = Parser.parseBehaviorJson(json);
+            assertEqual(behaviors.length, 0, 'Should have 0 behaviors');
+        });
+
+        // ============================================
         // Matcher Tests
         // ============================================
 

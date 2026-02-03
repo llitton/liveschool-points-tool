@@ -2,11 +2,12 @@
 
 ## Overview
 
-This tool helps bulk-assign behaviors (points) to students in LiveSchool. It has three modes:
+This tool helps bulk-assign behaviors (points) to students in LiveSchool. It has four modes:
 
 1. **Assign Points Mode** - Match student names from school spreadsheets to LiveSchool IDs and generate assignment scripts
 2. **Demo Data Generator Mode** - Create randomized point history for demo/sales sites
 3. **Balance Transfer Mode** - Transfer point balances from other systems to LiveSchool
+4. **Merge Students Mode** - Replay behavior transactions from a duplicate student record onto the correct student
 
 **Live URL:** https://points.liveschoolhelp.com
 
@@ -61,6 +62,20 @@ Use this mode to transfer point balances from other student management systems.
 6. Review any unmatched students and select correct matches
 7. Click "Generate Script"
 8. Copy the script and paste into LiveSchool's browser console (admin.liveschoolinc.com)
+
+### Merge Students Mode
+
+Use this mode when a school has duplicate student records (e.g., one manually created, one from Clever sync) and needs to replay the original student's behavior transactions onto the correct record.
+
+1. Click "Merge Students" toggle at the top
+2. Enter the Original Student ID (source) and New Student ID (target)
+3. Enter the Roster ID, Location ID, and School ID
+4. Upload the extended data export (TSV) for the original student's transaction history
+5. Paste the behavior JSON (from `GET /v2/schools/{schoolId}/behaviors`) to map behavior names to IDs
+6. Click "Parse Transactions" to review mapped/unmapped behaviors and transaction groups
+7. Resolve any unmapped behaviors using the dropdown
+8. Click "Generate Script"
+9. Copy the script and paste into LiveSchool's browser console
 
 ## File Formats
 
@@ -292,7 +307,7 @@ liveschool-points-app/
 ├── tests.html          # Browser-based test suite
 ├── claude.md           # This documentation
 └── js/
-    ├── app.js          # Main application logic (App, DemoApp, BalanceApp modules)
+    ├── app.js          # Main application logic (App, DemoApp, BalanceApp, MergeApp modules)
     ├── matcher.js      # Name matching with Fuse.js
     └── parser.js       # XLSX and CSV parsing
 ```
@@ -364,6 +379,7 @@ The test suite covers:
 - `parseFirstLastName()` - "FirstName LastName" format (Balance Transfer mode)
 - `getColumnInfo()` - Column header extraction
 - `extractBalanceData()` - Balance file data extraction
+- `parseBehaviorJson()` - LiveSchool behavior API JSON parsing (Merge Students mode)
 
 **Matcher Module:**
 - `lastNamesMatch()` - Compound names, truncation handling
@@ -587,6 +603,53 @@ Fields:
 - Error collection and retry script generation
 - Summary with success/failure counts
 
+## Merge Students Mode
+
+The Merge Students mode replays behavior transactions from a duplicate student record onto the correct student. This is needed when a school manually creates a student who later comes through Clever sync, resulting in two separate records with transaction history split between them.
+
+### How It Works
+
+1. **Enter IDs**: Enter the Original Student ID (source of transactions) and the New Student ID (target to replay onto), plus the Roster ID, Location ID, and School ID
+2. **Upload Points Log**: Upload the extended data export (TSV) from LiveSchool containing the original student's transaction history
+3. **Import Behavior Map**: Paste the JSON output from `GET /v2/schools/{schoolId}/behaviors` so behavior names can be mapped to numeric IDs
+4. **Review Transactions**: Click "Parse Transactions" to see mapped/unmapped behaviors, API call count, and skipped rewards
+5. **Resolve Unmapped**: If any behavior names don't match, select the correct behavior from the dropdown
+6. **Generate Script**: Creates a sequential console script that replays each transaction group
+
+### Extended Data Export Format (TSV)
+
+The input file is a tab-separated export from LiveSchool with these key columns:
+
+| Column | Used For |
+|--------|----------|
+| `Record ID` | Groups rows into single API calls (same Record ID = one original point-giving action) |
+| `Behavior / Reward Name` | Matched to behavior IDs via the imported JSON |
+| `Type` | "Behavior" rows are replayed; "Reward" rows are skipped |
+| `Official Date` | Used as the `date` field in the API call |
+| `Official Time` | Used as the `time` field in the API call |
+| `Comment` | Passed through to the API call if present |
+| `Student LiveSchool ID` | For validation (should match the original student ID) |
+
+### Behavior Name Matching
+
+Behavior names from the export are matched to IDs from the behavior JSON using case-insensitive, whitespace-trimmed comparison. If a name doesn't match (e.g., the behavior was renamed or has trailing spaces), the user can manually map it using a dropdown.
+
+### Generated Script Features
+
+- Sequential processing (one API call at a time, since we're targeting a single student)
+- 1.5 second delay between API calls
+- 3 retry attempts with exponential backoff (2s, 4s, 6s)
+- Progress logging with behavior names and dates
+- Failure collection and summary
+- Uses `POST /v2/conducts` with `credentials: "include"`
+
+### Important Notes
+
+- **Store purchases are skipped**: Rows where `Type = "Reward"` use a different API endpoint and are not replayed
+- **Teacher attribution**: All replayed transactions will be attributed to whoever is logged into LiveSchool, not the original teacher
+- **The API accepts backdated dates**: The `date` field can be set to historical dates
+- **Multiple behaviors per Record ID**: When a teacher gave multiple behaviors at once (same Record ID), they are combined into a single API call with multiple entries in the `behaviors` object
+
 ## Onboarding & Help
 
 The tool includes built-in onboarding for new users:
@@ -601,6 +664,15 @@ First-visit and version tracking uses localStorage keys:
 - `liveschool-points-version`: Last version user has seen
 
 ## Changelog
+
+### v2.3.0 (February 2026)
+- **New: Merge Students Mode** - Replay behavior transactions from a duplicate student onto the correct record
+- Upload the extended data export (TSV) of the original student's transaction history
+- Import behavior JSON to map behavior names to IDs
+- Review and resolve unmapped behaviors before generating script
+- Generated script processes transactions sequentially with 1.5s delay and retry logic
+- Added `Parser.parsePointsLog()` for TSV parsing and `Parser.parseBehaviorJson()` for behavior API JSON parsing
+- Added `MergeApp` module in app.js
 
 ### v2.2.3 (January 2026)
 - **Improved: Demo Data Generator** - No longer requires demerit behaviors

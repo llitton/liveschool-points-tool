@@ -65,6 +65,11 @@
                         <h4>Balance Transfer</h4>
                         <p>Transfer point balances from other systems to LiveSchool by matching student names to IDs.</p>
                     </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔀</div>
+                        <h4>Merge Students</h4>
+                        <p>Replay behavior transactions from a duplicate student record onto the correct student.</p>
+                    </div>
                 </div>
 
                 <div class="getting-started">
@@ -90,6 +95,16 @@
                 <button class="modal-close" id="close-changelog">&times;</button>
             </div>
             <div class="modal-body changelog-body">
+                <div class="changelog-entry">
+                    <div class="changelog-version">v2.3.0 <span class="changelog-date">February 2026</span></div>
+                    <ul>
+                        <li><strong>New: Merge Students Mode</strong> - Replay behavior transactions from a duplicate student onto the correct record</li>
+                        <li>Upload the extended data export (TSV) of the original student's transaction history</li>
+                        <li>Import behavior JSON to map behavior names to IDs</li>
+                        <li>Review and resolve unmapped behaviors before generating script</li>
+                        <li>Generated script processes transactions sequentially with retry logic</li>
+                    </ul>
+                </div>
                 <div class="changelog-entry">
                     <div class="changelog-version">v2.2.3 <span class="changelog-date">January 2026</span></div>
                     <ul>
@@ -224,6 +239,25 @@
                 <span class="summary-label">Matched</span>
             </div>
         </div>
+        <!-- Merge Students Mode Summary -->
+        <div class="summary-content merge-summary hidden">
+            <div class="summary-item" id="merge-summary-ids">
+                <span class="summary-icon">○</span>
+                <span class="summary-label">Student IDs</span>
+            </div>
+            <div class="summary-item" id="merge-summary-log">
+                <span class="summary-icon">○</span>
+                <span class="summary-label">Points Log</span>
+            </div>
+            <div class="summary-item" id="merge-summary-behaviors">
+                <span class="summary-icon">○</span>
+                <span class="summary-label">Behaviors</span>
+            </div>
+            <div class="summary-item" id="merge-summary-mapped">
+                <span class="summary-icon">○</span>
+                <span class="summary-label">Mapped</span>
+            </div>
+        </div>
     </div>
 
     <div class="container">
@@ -265,6 +299,7 @@
                 <button class="mode-btn active" data-mode="assign">Assign Points</button>
                 <button class="mode-btn" data-mode="demo">Demo Data Generator</button>
                 <button class="mode-btn" data-mode="balance">Balance Transfer</button>
+                <button class="mode-btn" data-mode="merge">Merge Students</button>
             </div>
         </header>
 
@@ -826,6 +861,160 @@
                     <div class="empty-state">
                         <div class="empty-icon">📝</div>
                         <p>Your transfer script will appear here once generated</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+        <!-- ============================================= -->
+        <!-- MERGE STUDENTS MODE SECTIONS (hidden by default) -->
+        <!-- ============================================= -->
+
+        <!-- Merge Step 1: Student IDs & Config -->
+        <section class="step merge-step hidden" id="merge-step-ids">
+            <div class="step-header">
+                <h2><span class="step-badge">1</span> Student IDs & Site Config</h2>
+            </div>
+            <div class="step-content">
+                <p class="step-description">Enter the original (source) and new (target) student IDs, plus site configuration.</p>
+                <h4>Student IDs</h4>
+                <div class="config-grid">
+                    <div class="config-field">
+                        <label for="merge-original-id">Original Student ID (source)</label>
+                        <input type="text" id="merge-original-id" placeholder="e.g., 4097396">
+                    </div>
+                    <div class="config-field">
+                        <label for="merge-new-id">New Student ID (target)</label>
+                        <input type="text" id="merge-new-id" placeholder="e.g., 4149727">
+                    </div>
+                </div>
+                <h4 style="margin-top: 1.5rem;">Site Configuration</h4>
+                <div class="config-grid">
+                    <div class="config-field">
+                        <label for="merge-roster-id">Roster ID</label>
+                        <input type="text" id="merge-roster-id" placeholder="e.g., 893673">
+                    </div>
+                    <div class="config-field">
+                        <label for="merge-location-id">Location ID</label>
+                        <input type="text" id="merge-location-id" placeholder="e.g., 19320">
+                    </div>
+                    <div class="config-field">
+                        <label for="merge-school-id">School ID</label>
+                        <input type="text" id="merge-school-id" placeholder="e.g., 3946">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Merge Step 2: Upload Points Log -->
+        <section class="step merge-step hidden locked" id="merge-step-upload">
+            <div class="step-header">
+                <h2><span class="step-badge">2</span> Upload Points Log</h2>
+                <span class="lock-icon" title="Enter student IDs and site config to unlock">🔒</span>
+            </div>
+            <div class="step-content">
+                <p class="step-description">Upload the extended data export (TSV) for the original student's transaction history.</p>
+                <div class="upload-box single" id="merge-log-dropzone">
+                    <div class="dropzone-content">
+                        <div class="upload-icon csv-icon">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                                <rect x="8" y="4" width="32" height="40" rx="2" fill="#2b6cb0" stroke="#3182ce" stroke-width="2"/>
+                                <text x="24" y="28" text-anchor="middle" fill="white" font-size="10" font-weight="bold">TSV</text>
+                            </svg>
+                        </div>
+                        <label for="merge-log-file">Extended Data Export (TSV)</label>
+                        <input type="file" id="merge-log-file" accept=".tsv,.csv,.txt">
+                        <button type="button" class="select-file-btn">Select File</button>
+                        <p class="upload-hint">or drag & drop here</p>
+                        <p class="upload-desc">
+                            Tab-separated export with Record ID, Behavior Name, Date, Time
+                            <span class="help-tooltip" title="Export from LiveSchool: Extended Data export. Must contain columns: Record ID, Behavior / Reward Name, Official Date, Official Time, Type.">?</span>
+                        </p>
+                    </div>
+                    <div id="merge-log-file-status" class="file-status"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Merge Step 3: Behavior Map -->
+        <section class="step merge-step hidden locked" id="merge-step-behaviors">
+            <div class="step-header">
+                <h2><span class="step-badge">3</span> Behavior Map</h2>
+                <span class="lock-icon" title="Upload points log to unlock">🔒</span>
+            </div>
+            <div class="step-content">
+                <p class="step-description">Paste the behavior JSON from the LiveSchool API to map behavior names to IDs.</p>
+                <p class="hint">In the browser console while logged into LiveSchool, run: <code>fetch('/v2/schools/{schoolId}/behaviors', {credentials:'include'}).then(r=>r.json()).then(d=>console.log(JSON.stringify(d)))</code></p>
+                <textarea id="merge-behavior-json" placeholder='Paste the JSON response from /v2/schools/{schoolId}/behaviors here...' rows="4"></textarea>
+                <button id="merge-import-behaviors" class="btn primary">Import Behaviors</button>
+                <div id="merge-behavior-list" class="hidden">
+                    <h4>Imported Behaviors (<span id="merge-behavior-count">0</span>)</h4>
+                    <div id="merge-behavior-items"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Merge Step 4: Review Transactions -->
+        <section class="step merge-step hidden locked" id="merge-step-review">
+            <div class="step-header">
+                <h2><span class="step-badge">4</span> Review Transactions</h2>
+                <span class="lock-icon" title="Import behavior map to unlock">🔒</span>
+            </div>
+            <div class="step-content">
+                <button id="merge-parse-transactions" class="btn primary">Parse Transactions</button>
+
+                <div id="merge-transaction-summary" class="hidden">
+                    <div class="match-stats merge-stats">
+                        <div class="stat-card matched">
+                            <div class="stat-icon">✓</div>
+                            <div class="stat-number" id="merge-mapped-count">0</div>
+                            <div class="stat-label">Mapped</div>
+                        </div>
+                        <div class="stat-card unmatched">
+                            <div class="stat-icon">⚠</div>
+                            <div class="stat-number" id="merge-unmapped-count">0</div>
+                            <div class="stat-label">Unmapped</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">📋</div>
+                            <div class="stat-number" id="merge-group-count">0</div>
+                            <div class="stat-label">API Calls</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🚫</div>
+                            <div class="stat-number" id="merge-skipped-count">0</div>
+                            <div class="stat-label">Skipped (Rewards)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="merge-unmapped-behaviors" class="hidden">
+                    <h3>Unmapped Behaviors</h3>
+                    <p class="hint">These behavior names from the export could not be matched to a behavior ID. Select the correct behavior or skip.</p>
+                    <div id="merge-unmapped-items"></div>
+                </div>
+
+                <div id="merge-transaction-table" class="hidden">
+                    <h3>Transaction Groups (<span id="merge-groups-total">0</span>)</h3>
+                    <p class="hint">Each group becomes one API call. Showing first 50.</p>
+                    <div id="merge-groups-list"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Merge Step 5: Generate Script -->
+        <section class="step merge-step hidden locked" id="merge-step-generate">
+            <div class="step-header">
+                <h2><span class="step-badge">5</span> Generate Merge Script</h2>
+                <span class="lock-icon" title="Review transactions to unlock">🔒</span>
+            </div>
+            <div class="step-content">
+                <button id="merge-generate-script" class="btn primary">Generate Script</button>
+                <div id="merge-scripts-output">
+                    <div class="empty-state">
+                        <div class="empty-icon">📝</div>
+                        <p>Your merge script will appear here once generated</p>
                     </div>
                 </div>
             </div>
