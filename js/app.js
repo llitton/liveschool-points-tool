@@ -2923,9 +2923,11 @@ const MergeApp = {
     behaviorMap: [],
     behaviorNameToId: {},
     transactionGroups: [],
+    rewardGroups: [],
     unmappedBehaviors: [],
+    unmappedRewards: [],
     manualBehaviorMaps: {},
-    skippedRewards: 0,
+    manualRewardMaps: {},
 
     init: function() {
         this.bindEvents();
@@ -2933,7 +2935,7 @@ const MergeApp = {
 
     bindEvents: function() {
         // Student IDs and config field changes
-        ['merge-original-id', 'merge-new-id', 'merge-roster-id', 'merge-location-id', 'merge-school-id'].forEach(id => {
+        ['merge-original-id', 'merge-new-id', 'merge-roster-id', 'merge-location-id', 'merge-school-id', 'merge-user-id'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
                 el.addEventListener('input', () => {
@@ -3096,35 +3098,41 @@ const MergeApp = {
 
         // Reset state
         this.transactionGroups = [];
+        this.rewardGroups = [];
         this.unmappedBehaviors = [];
-        this.skippedRewards = 0;
-        const unmappedSet = new Set();
+        this.unmappedRewards = [];
+        const unmappedBehaviorSet = new Set();
+        const unmappedRewardSet = new Set();
 
-        // Group rows by Record ID
-        const groupMap = new Map();
+        // Group rows by Record ID, separating behaviors from rewards
+        const behaviorGroupMap = new Map();
+        const rewardGroupMap = new Map();
 
         for (const row of this.logData.rows) {
-            if (row['Type'] === 'Reward') {
-                this.skippedRewards++;
-                continue;
-            }
-
             const recordId = row['Record ID'];
             if (!recordId) continue;
 
-            if (!groupMap.has(recordId)) {
-                groupMap.set(recordId, []);
+            if (row['Type'] === 'Reward') {
+                if (!rewardGroupMap.has(recordId)) {
+                    rewardGroupMap.set(recordId, []);
+                }
+                rewardGroupMap.get(recordId).push(row);
+            } else {
+                if (!behaviorGroupMap.has(recordId)) {
+                    behaviorGroupMap.set(recordId, []);
+                }
+                behaviorGroupMap.get(recordId).push(row);
             }
-            groupMap.get(recordId).push(row);
         }
 
-        // Process each group
+        // Process behavior groups
         let mappedCount = 0;
 
-        for (const [recordId, rows] of groupMap) {
+        for (const [recordId, rows] of behaviorGroupMap) {
             const firstRow = rows[0];
             const date = this.formatDate(firstRow['Official Date'] || '');
             const time = this.formatTime(firstRow['Official Time'] || '');
+            const teacher = (firstRow['Teacher'] || '').trim();
 
             // Collect comment from any row in the group
             let comment = '';
@@ -3133,6 +3141,12 @@ const MergeApp = {
                     comment = row['Comment'].trim();
                     break;
                 }
+            }
+
+            // Add teacher attribution
+            if (teacher && teacher !== 'Student Purchase') {
+                const attribution = '[Originally by ' + teacher + ']';
+                comment = comment ? attribution + ' ' + comment : attribution;
             }
 
             // Build behaviors object
@@ -3153,8 +3167,8 @@ const MergeApp = {
                     mappedCount++;
                 } else {
                     allMapped = false;
-                    if (!unmappedSet.has(key)) {
-                        unmappedSet.add(key);
+                    if (!unmappedBehaviorSet.has(key)) {
+                        unmappedBehaviorSet.add(key);
                         this.unmappedBehaviors.push(behaviorName);
                     }
                 }
@@ -3163,11 +3177,56 @@ const MergeApp = {
             if (allMapped && Object.keys(behaviors).length > 0) {
                 this.transactionGroups.push({
                     recordId,
+                    type: 'behavior',
                     date,
                     time,
+                    teacher,
                     comment,
                     behaviors,
                     behaviorNames
+                });
+            }
+        }
+
+        // Process reward groups
+        for (const [recordId, rows] of rewardGroupMap) {
+            const firstRow = rows[0];
+            const date = this.formatDate(firstRow['Official Date'] || '');
+            const time = this.formatTime(firstRow['Official Time'] || '');
+            const teacher = (firstRow['Teacher'] || '').trim();
+
+            const rewardNames = [];
+            const incentiveIds = [];
+            let allMapped = true;
+
+            for (const row of rows) {
+                const rewardName = (row['Behavior / Reward Name'] || '').trim();
+                if (!rewardName) continue;
+
+                const key = rewardName.toLowerCase().trim();
+                const mappedId = this.manualRewardMaps[key];
+
+                if (mappedId) {
+                    incentiveIds.push(mappedId);
+                    rewardNames.push(rewardName);
+                } else {
+                    allMapped = false;
+                    if (!unmappedRewardSet.has(key)) {
+                        unmappedRewardSet.add(key);
+                        this.unmappedRewards.push(rewardName);
+                    }
+                }
+            }
+
+            if (allMapped && incentiveIds.length > 0) {
+                this.rewardGroups.push({
+                    recordId,
+                    type: 'reward',
+                    date,
+                    time,
+                    teacher,
+                    rewardNames,
+                    incentiveIds
                 });
             }
         }
@@ -3177,14 +3236,26 @@ const MergeApp = {
         summaryEl.classList.remove('hidden');
         document.getElementById('merge-mapped-count').textContent = mappedCount;
         document.getElementById('merge-unmapped-count').textContent = this.unmappedBehaviors.length;
-        document.getElementById('merge-group-count').textContent = this.transactionGroups.length;
-        document.getElementById('merge-skipped-count').textContent = this.skippedRewards;
+        document.getElementById('merge-group-count').textContent = this.transactionGroups.length + this.rewardGroups.length;
+        document.getElementById('merge-purchase-count').textContent = this.rewardGroups.length;
 
-        // Show unmapped behaviors if any
-        if (this.unmappedBehaviors.length > 0) {
+        // Show unmapped behaviors/rewards if any
+        const hasUnmappedBehaviors = this.unmappedBehaviors.length > 0;
+        const hasUnmappedRewards = this.unmappedRewards.length > 0;
+
+        if (hasUnmappedBehaviors) {
             this.showUnmappedBehaviors();
         } else {
             document.getElementById('merge-unmapped-behaviors').classList.add('hidden');
+        }
+
+        if (hasUnmappedRewards) {
+            this.showUnmappedRewards();
+        } else {
+            document.getElementById('merge-unmapped-rewards').classList.add('hidden');
+        }
+
+        if (!hasUnmappedBehaviors && !hasUnmappedRewards) {
             this.showTransactionGroups();
             this.unlockStep('merge-step-generate');
         }
@@ -3236,14 +3307,59 @@ const MergeApp = {
 
         itemEl.classList.add('resolved');
 
-        // Check if all unmapped are resolved
-        const allResolved = this.unmappedBehaviors.every((name, i) => {
+        // Check if all unmapped behaviors are resolved, then re-parse
+        const allBehaviorsResolved = this.unmappedBehaviors.every((name, i) => {
             const k = name.toLowerCase().trim();
             return k in this.manualBehaviorMaps;
         });
+        const allRewardsResolved = this.unmappedRewards.every((name, i) => {
+            const k = name.toLowerCase().trim();
+            return k in this.manualRewardMaps;
+        });
 
-        if (allResolved) {
-            // Re-parse with manual mappings
+        if (allBehaviorsResolved && allRewardsResolved) {
+            this.parseTransactions();
+        }
+    },
+
+    showUnmappedRewards: function() {
+        const container = document.getElementById('merge-unmapped-rewards');
+        const itemsEl = document.getElementById('merge-unmapped-reward-items');
+        container.classList.remove('hidden');
+
+        itemsEl.innerHTML = this.unmappedRewards.map((name, idx) => `
+            <div class="unmapped-behavior-item" id="unmapped-reward-${idx}">
+                <span class="behavior-name">${this.escapeHtml(name)}</span>
+                <input type="text" id="unmapped-reward-input-${idx}" placeholder="Incentive ID (e.g., 198877)" style="width: 200px;">
+                <button class="btn secondary" onclick="MergeApp.resolveUnmappedReward(${idx})">Confirm</button>
+            </div>
+        `).join('');
+    },
+
+    resolveUnmappedReward: function(idx) {
+        const input = document.getElementById(`unmapped-reward-input-${idx}`);
+        const itemEl = document.getElementById(`unmapped-reward-${idx}`);
+        const value = input.value.trim();
+
+        if (!value) return;
+
+        const rewardName = this.unmappedRewards[idx];
+        const key = rewardName.toLowerCase().trim();
+        this.manualRewardMaps[key] = value;
+
+        itemEl.classList.add('resolved');
+
+        // Check if all unmapped are resolved, then re-parse
+        const allBehaviorsResolved = this.unmappedBehaviors.every((name, i) => {
+            const k = name.toLowerCase().trim();
+            return k in this.manualBehaviorMaps;
+        });
+        const allRewardsResolved = this.unmappedRewards.every((name, i) => {
+            const k = name.toLowerCase().trim();
+            return k in this.manualRewardMaps;
+        });
+
+        if (allBehaviorsResolved && allRewardsResolved) {
             this.parseTransactions();
         }
     },
@@ -3254,18 +3370,23 @@ const MergeApp = {
         const totalEl = document.getElementById('merge-groups-total');
 
         tableEl.classList.remove('hidden');
-        totalEl.textContent = this.transactionGroups.length;
+        const allGroups = [...this.transactionGroups, ...this.rewardGroups];
+        totalEl.textContent = allGroups.length;
 
         // Show first 50 groups
-        const displayGroups = this.transactionGroups.slice(0, 50);
+        const displayGroups = allGroups.slice(0, 50);
 
-        listEl.innerHTML = displayGroups.map(g => `
-            <div class="merge-group-item">
+        listEl.innerHTML = displayGroups.map(g => {
+            const names = g.type === 'reward' ? g.rewardNames.join(', ') : g.behaviorNames.join(', ');
+            const typeLabel = g.type === 'reward' ? '<span class="group-type-badge reward">Purchase</span>' : '';
+            return `
+            <div class="merge-group-item ${g.type === 'reward' ? 'reward-group' : ''}">
                 <span class="group-date">${this.escapeHtml(g.date)} ${this.escapeHtml(g.time)}</span>
-                <span class="group-behaviors">${this.escapeHtml(g.behaviorNames.join(', '))}</span>
+                ${typeLabel}
+                <span class="group-behaviors">${this.escapeHtml(names)}</span>
                 ${g.comment ? `<span class="group-comment" title="${this.escapeHtml(g.comment)}">${this.escapeHtml(g.comment)}</span>` : ''}
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
     },
 
     formatDate: function(dateStr) {
@@ -3305,15 +3426,23 @@ const MergeApp = {
         const schoolId = document.getElementById('merge-school-id').value.trim();
         const newId = document.getElementById('merge-new-id').value.trim();
         const originalId = document.getElementById('merge-original-id').value.trim();
+        const userId = document.getElementById('merge-user-id').value.trim();
 
         if (!rosterId || !locationId || !schoolId || !newId) {
             alert('Please fill in all configuration fields');
             return;
         }
 
-        if (this.transactionGroups.length === 0) {
+        if (this.transactionGroups.length === 0 && this.rewardGroups.length === 0) {
             alert('No transaction groups to replay. Please parse transactions first.');
             return;
+        }
+
+        // Warn if rewards exist but no userId
+        if (this.rewardGroups.length > 0 && !userId) {
+            if (!confirm('You have ' + this.rewardGroups.length + ' purchase(s) but no User ID entered. Purchases will be skipped in the generated script. Continue?')) {
+                return;
+            }
         }
 
         const script = this.buildMergeScript({
@@ -3322,14 +3451,17 @@ const MergeApp = {
             rosterId,
             locationId,
             schoolId,
-            groups: this.transactionGroups
+            userId,
+            groups: this.transactionGroups,
+            rewardGroups: userId ? this.rewardGroups : []
         });
 
+        const totalCalls = this.transactionGroups.length + (userId ? this.rewardGroups.length : 0);
         const container = document.getElementById('merge-scripts-output');
         container.innerHTML = `
             <div class="script-block">
                 <h4>
-                    <span>Merge Script (${this.transactionGroups.length} API calls, student ${this.escapeHtml(originalId)} → ${this.escapeHtml(newId)})</span>
+                    <span>Merge Script (${totalCalls} API calls, student ${this.escapeHtml(originalId)} → ${this.escapeHtml(newId)})</span>
                     <div class="script-actions">
                         <button class="copy-btn" id="copy-merge-script">Copy</button>
                         <button class="download-btn" id="download-merge-script">Download</button>
@@ -3379,29 +3511,44 @@ const MergeApp = {
             label: g.behaviorNames.join(', ')
         })), null, 2);
 
+        const rewardGroupsJson = config.rewardGroups.length > 0
+            ? JSON.stringify(config.rewardGroups.map(g => ({
+                recordId: g.recordId,
+                incentiveIds: g.incentiveIds,
+                label: g.rewardNames.join(', ')
+            })), null, 2)
+            : '[]';
+
+        const totalCalls = config.groups.length + config.rewardGroups.length;
+        const hasRewards = config.rewardGroups.length > 0;
+
         return `// =============================================================
 // LiveSchool Student Merge Script
 // Generated: ${new Date().toISOString()}
 //
 // Original Student: ${config.originalId} (source)
 // New Student: ${config.newId} (target)
-// Transaction Groups: ${config.groups.length}
+// Behavior Transactions: ${config.groups.length}
+// Purchase Transactions: ${config.rewardGroups.length}
+// Total API Calls: ${totalCalls}
 // School: ${config.schoolId}
 //
 // HOW TO USE:
 // 1. Log into liveschoolapp.com in Chrome
 // 2. Open DevTools (Cmd+Option+J)
 // 3. Paste this script and press Enter
-// =============================================================
+${hasRewards ? '//\n// NOTE: Purchases are replayed with current timestamps (the\n// rewards API does not support backdating).\n' : ''}// =============================================================
 
 const CONFIG = {
     newStudentId: ${config.newId},
     roster: ${config.rosterId},
     location: ${config.locationId},
-    school: ${config.schoolId}
+    school: ${config.schoolId}${hasRewards ? ',\n    userId: ' + config.userId : ''}
 };
 
 const TRANSACTION_GROUPS = ${groupsJson};
+
+const REWARD_GROUPS = ${rewardGroupsJson};
 
 const REQUEST_DELAY = 1500;
 const RETRY_ATTEMPTS = 3;
@@ -3442,7 +3589,7 @@ async function replayTransaction(group, index, total, attempt) {
 
         console.log(
             "%c\\u2713 [" + (index + 1) + "/" + total + "]%c " +
-            group.date + " " + group.time + " — " + group.label +
+            group.date + " " + group.time + " \\u2014 " + group.label +
             (group.comment ? ' | "' + group.comment + '"' : ""),
             "color: green; font-weight: bold;",
             "color: inherit;"
@@ -3454,40 +3601,146 @@ async function replayTransaction(group, index, total, attempt) {
             await sleep(2000 * attempt);
             return replayTransaction(group, index, total, attempt + 1);
         }
-        console.error("\\u2717 [" + (index + 1) + "/" + total + "] Record " + group.recordId + " — " + error.message);
+        console.error("\\u2717 [" + (index + 1) + "/" + total + "] Record " + group.recordId + " \\u2014 " + error.message);
         return { success: false, recordId: group.recordId, error: error.message };
     }
 }
+${hasRewards ? `
+async function replayReward(group, index, total, attempt) {
+    attempt = attempt || 1;
 
+    try {
+        // Step 1: Create the reward/purchase
+        const rewardPayload = {
+            school: CONFIG.school,
+            students: [CONFIG.newStudentId],
+            incentives: group.incentiveIds.map(Number),
+            roster: CONFIG.roster,
+            fulfillment_status: group.incentiveIds.map(function() { return "delivered"; }),
+            fulfillment_scheduled: group.incentiveIds.map(function() { return null; })
+        };
+
+        const rewardResponse = await fetch("https://api.liveschoolapp.com/v2/rewards", {
+            method: "POST",
+            credentials: "include",
+            headers: {
+                "accept": "application/json, text/plain, */*",
+                "content-type": "application/json"
+            },
+            body: JSON.stringify(rewardPayload)
+        });
+
+        if (!rewardResponse.ok) {
+            throw new Error("HTTP " + rewardResponse.status + " on POST /v2/rewards");
+        }
+
+        const rewardData = await rewardResponse.json();
+
+        // Step 2: Mark fulfillment as delivered
+        // The response contains fulfillment IDs that need to be delivered
+        var fulfillmentIds = [];
+        if (rewardData && rewardData.items) {
+            for (var key in rewardData.items) {
+                if (rewardData.items[key].fulfillment_id) {
+                    fulfillmentIds.push(rewardData.items[key].fulfillment_id);
+                }
+            }
+        }
+        // Fallback: try array format
+        if (fulfillmentIds.length === 0 && Array.isArray(rewardData)) {
+            for (var r = 0; r < rewardData.length; r++) {
+                if (rewardData[r].fulfillment_id) {
+                    fulfillmentIds.push(rewardData[r].fulfillment_id);
+                }
+            }
+        }
+
+        for (var f = 0; f < fulfillmentIds.length; f++) {
+            var deliverResponse = await fetch(
+                "https://api.liveschoolapp.com/api-v3/fulfillments/" + fulfillmentIds[f] + "/deliver?userId=" + CONFIG.userId,
+                {
+                    method: "PUT",
+                    credentials: "include",
+                    headers: {
+                        "accept": "application/json, text/plain, */*",
+                        "content-type": "application/json"
+                    }
+                }
+            );
+            if (!deliverResponse.ok) {
+                throw new Error("HTTP " + deliverResponse.status + " on PUT /fulfillments/" + fulfillmentIds[f] + "/deliver");
+            }
+        }
+
+        console.log(
+            "%c\\u2713 [" + (index + 1) + "/" + total + "]%c \\ud83d\\udecf\\ufe0f " + group.label,
+            "color: green; font-weight: bold;",
+            "color: inherit;"
+        );
+        return { success: true };
+    } catch (error) {
+        if (attempt < RETRY_ATTEMPTS) {
+            console.warn("Retry " + (attempt + 1) + " for Reward Record " + group.recordId + "...");
+            await sleep(2000 * attempt);
+            return replayReward(group, index, total, attempt + 1);
+        }
+        console.error("\\u2717 [" + (index + 1) + "/" + total + "] Reward Record " + group.recordId + " \\u2014 " + error.message);
+        return { success: false, recordId: group.recordId, error: error.message };
+    }
+}
+` : ''}
 (async () => {
     console.log("%c=== LiveSchool Student Merge ===", "font-weight: bold; font-size: 14px;");
     console.log("Target student: " + CONFIG.newStudentId);
-    console.log("Transactions to replay: " + TRANSACTION_GROUPS.length);
-    console.log("Estimated time: ~" + Math.round(TRANSACTION_GROUPS.length * REQUEST_DELAY / 1000) + "s\\n");
+    console.log("Behavior transactions: " + TRANSACTION_GROUPS.length);${hasRewards ? '\n    console.log("Purchase transactions: " + REWARD_GROUPS.length);' : ''}
+    console.log("Total API calls: " + ${totalCalls});
+    console.log("Estimated time: ~" + Math.round(${totalCalls} * REQUEST_DELAY / 1000) + "s\\n");
 
     var successCount = 0;
     var failures = [];
+    var totalOps = ${totalCalls};
+    var opIndex = 0;
 
+    // Replay behavior transactions
     for (var i = 0; i < TRANSACTION_GROUPS.length; i++) {
-        var result = await replayTransaction(TRANSACTION_GROUPS[i], i, TRANSACTION_GROUPS.length);
+        var result = await replayTransaction(TRANSACTION_GROUPS[i], opIndex, totalOps);
         if (result.success) {
             successCount++;
         } else {
             failures.push(result);
         }
+        opIndex++;
 
-        if (i < TRANSACTION_GROUPS.length - 1) {
+        if (opIndex < totalOps) {
             await sleep(REQUEST_DELAY);
         }
     }
+${hasRewards ? `
+    // Replay purchase transactions
+    if (REWARD_GROUPS.length > 0) {
+        console.log("\\n%c--- Processing Purchases ---", "font-weight: bold; color: #805ad5;");
+    }
+    for (var j = 0; j < REWARD_GROUPS.length; j++) {
+        var rewardResult = await replayReward(REWARD_GROUPS[j], opIndex, totalOps);
+        if (rewardResult.success) {
+            successCount++;
+        } else {
+            failures.push(rewardResult);
+        }
+        opIndex++;
 
+        if (opIndex < totalOps) {
+            await sleep(REQUEST_DELAY);
+        }
+    }
+` : ''}
     console.log("\\n%c=== Results ===", "font-weight: bold; font-size: 14px;");
     console.log("%c" + successCount + " succeeded", "color: green; font-weight: bold;");
     if (failures.length > 0) {
         console.log("%c" + failures.length + " failed", "color: red; font-weight: bold;");
         console.log("Failed records:", failures.map(function(f) { return f.recordId; }));
     }
-    console.log("Total: " + TRANSACTION_GROUPS.length);
+    console.log("Total: " + totalOps);
     console.log("Student merge complete!");
 })();
 `;
@@ -3526,10 +3779,11 @@ async function replayTransaction(group, index, total, attempt) {
 
         // Mapped status
         const mappedSummary = document.getElementById('merge-summary-mapped');
-        if (this.transactionGroups.length > 0) {
+        const totalGroups = this.transactionGroups.length + this.rewardGroups.length;
+        if (totalGroups > 0) {
             mappedSummary.querySelector('.summary-icon').textContent = '✓';
             mappedSummary.querySelector('.summary-icon').classList.add('complete');
-            mappedSummary.querySelector('.summary-label').textContent = `${this.transactionGroups.length} groups`;
+            mappedSummary.querySelector('.summary-label').textContent = `${totalGroups} groups`;
         }
     },
 
@@ -3588,7 +3842,7 @@ const Onboarding = {
     checkFirstVisit: function() {
         const hasVisited = localStorage.getItem('liveschool-points-visited');
         const lastVersion = localStorage.getItem('liveschool-points-version');
-        const currentVersion = '2.3.0';
+        const currentVersion = '2.4.0';
 
         if (!hasVisited) {
             // First visit - show welcome

@@ -1893,12 +1893,27 @@ h1 {
     min-width: 200px;
 }
 
-.unmapped-behavior-item select {
+.unmapped-behavior-item select,
+.unmapped-behavior-item input[type="text"] {
     flex: 1;
     padding: 0.4rem;
     border: 1px solid #e2e8f0;
     border-radius: 6px;
     font-size: 0.85rem;
+}
+
+.merge-group-item.reward-group {
+    border-left-color: #805ad5;
+}
+
+.group-type-badge.reward {
+    background: #e9d8fd;
+    color: #553c9a;
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
 }
 
 .merge-stats {

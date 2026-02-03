@@ -96,6 +96,12 @@
             </div>
             <div class="modal-body changelog-body">
                 <div class="changelog-entry">
+                    <div class="changelog-version">v2.4.0 <span class="changelog-date">February 2026</span></div>
+                    <ul>
+                        <li><strong>Improved: Merge Students</strong> - Now replays purchase/reward transactions (2-step API: POST /v2/rewards + PUT /fulfillments/deliver)</li>
+                        <li>Teacher name attribution on all replayed transactions (e.g., "[Originally by Mr. Shealy]")</li>
+                        <li>Unmapped reward names resolved via incentive ID input</li>
+                    </ul>
                     <div class="changelog-version">v2.3.0 <span class="changelog-date">February 2026</span></div>
                     <ul>
                         <li><strong>New: Merge Students Mode</strong> - Replay behavior transactions from a duplicate student onto the correct record</li>
@@ -903,6 +909,10 @@
                         <label for="merge-school-id">School ID</label>
                         <input type="text" id="merge-school-id" placeholder="e.g., 3946">
                     </div>
+                    <div class="config-field">
+                        <label for="merge-user-id">User ID <span class="hint">(optional — for purchases)</span></label>
+                        <input type="text" id="merge-user-id" placeholder="e.g., 123456">
+                    </div>
                 </div>
             </div>
         </section>
@@ -982,9 +992,9 @@
                             <div class="stat-label">API Calls</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-icon">🚫</div>
-                            <div class="stat-number" id="merge-skipped-count">0</div>
-                            <div class="stat-label">Skipped (Rewards)</div>
+                            <div class="stat-icon">🛒</div>
+                            <div class="stat-number" id="merge-purchase-count">0</div>
+                            <div class="stat-label">Purchases</div>
                         </div>
                     </div>
                 </div>
@@ -993,6 +1003,12 @@
                     <h3>Unmapped Behaviors</h3>
                     <p class="hint">These behavior names from the export could not be matched to a behavior ID. Select the correct behavior or skip.</p>
                     <div id="merge-unmapped-items"></div>
+                </div>
+
+                <div id="merge-unmapped-rewards" class="hidden">
+                    <h3>Unmapped Rewards</h3>
+                    <p class="hint">Enter the incentive ID for each reward. Find IDs in LiveSchool's network tab when purchasing an item (look for the <code>incentives</code> field in POST /v2/rewards).</p>
+                    <div id="merge-unmapped-reward-items"></div>
                 </div>
 
                 <div id="merge-transaction-table" class="hidden">

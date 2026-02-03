@@ -7,7 +7,7 @@ This tool helps bulk-assign behaviors (points) to students in LiveSchool. It has
 1. **Assign Points Mode** - Match student names from school spreadsheets to LiveSchool IDs and generate assignment scripts
 2. **Demo Data Generator Mode** - Create randomized point history for demo/sales sites
 3. **Balance Transfer Mode** - Transfer point balances from other systems to LiveSchool
-4. **Merge Students Mode** - Replay behavior transactions from a duplicate student record onto the correct student
+4. **Merge Students Mode** - Replay behavior transactions and purchases from a duplicate student record onto the correct student
 
 **Live URL:** https://points.liveschoolhelp.com
 
@@ -69,13 +69,14 @@ Use this mode when a school has duplicate student records (e.g., one manually cr
 
 1. Click "Merge Students" toggle at the top
 2. Enter the Original Student ID (source) and New Student ID (target)
-3. Enter the Roster ID, Location ID, and School ID
+3. Enter the Roster ID, Location ID, School ID, and optionally User ID (required for purchases)
 4. Upload the extended data export (TSV) for the original student's transaction history
 5. Paste the behavior JSON (from `GET /v2/schools/{schoolId}/behaviors`) to map behavior names to IDs
-6. Click "Parse Transactions" to review mapped/unmapped behaviors and transaction groups
-7. Resolve any unmapped behaviors using the dropdown
+6. Click "Parse Transactions" to review mapped/unmapped behaviors, purchases, and transaction groups
+7. Resolve any unmapped behaviors (dropdown) or rewards (enter incentive IDs)
 8. Click "Generate Script"
 9. Copy the script and paste into LiveSchool's browser console
+10. Teacher names are automatically added as comments (e.g., `[Originally by Mr. Shealy]`)
 
 ## File Formats
 
@@ -641,13 +642,15 @@ Behavior names from the export are matched to IDs from the behavior JSON using c
 - 3 retry attempts with exponential backoff (2s, 4s, 6s)
 - Progress logging with behavior names and dates
 - Failure collection and summary
-- Uses `POST /v2/conducts` with `credentials: "include"`
+- Uses `POST /v2/conducts` with `credentials: "include"` for behaviors
+- Uses `POST /v2/rewards` + `PUT /api-v3/fulfillments/{id}/deliver?userId={userId}` for purchases
+- Teacher name attribution: all comments include `[Originally by {Teacher}]`
 
 ### Important Notes
 
-- **Store purchases are skipped**: Rows where `Type = "Reward"` use a different API endpoint and are not replayed
-- **Teacher attribution**: All replayed transactions will be attributed to whoever is logged into LiveSchool, not the original teacher
-- **The API accepts backdated dates**: The `date` field can be set to historical dates
+- **Store purchases are supported**: Rows where `Type = "Reward"` use a 2-step API: `POST /v2/rewards` then `PUT /api-v3/fulfillments/{id}/deliver?userId={userId}`. User must provide the User ID and map reward names to incentive IDs. Purchases are replayed with current timestamps (the rewards API does not support backdating).
+- **Teacher attribution**: All replayed behavior transactions include `[Originally by {Teacher}]` in the comment field, preserving the original teacher's name. The logged-in user is still the API caller, but the comment shows who originally gave the point.
+- **The conducts API accepts backdated dates**: The `date` field can be set to historical dates for behavior transactions
 - **Multiple behaviors per Record ID**: When a teacher gave multiple behaviors at once (same Record ID), they are combined into a single API call with multiple entries in the `behaviors` object
 
 ## Onboarding & Help
@@ -664,6 +667,12 @@ First-visit and version tracking uses localStorage keys:
 - `liveschool-points-version`: Last version user has seen
 
 ## Changelog
+
+### v2.4.0 (February 2026)
+- **Improved: Merge Students** - Now replays purchase/reward transactions via 2-step API (POST /v2/rewards + PUT /fulfillments/deliver)
+- Teacher name attribution on all replayed transactions (comment includes `[Originally by {Teacher}]`)
+- Unmapped reward names resolved via incentive ID text input
+- Optional User ID field in Step 1 (required only if purchases exist in the export)
 
 ### v2.3.0 (February 2026)
 - **New: Merge Students Mode** - Replay behavior transactions from a duplicate student onto the correct record
