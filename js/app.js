@@ -3405,7 +3405,7 @@ const MergeApp = {
         const idDisplay = schoolId || '{schoolId}';
 
         if (scriptEl) {
-            scriptEl.textContent = "fetch('/v2/schools/" + idDisplay + "/behaviors', {credentials:'include'}).then(r=>r.json()).then(d=>console.log(JSON.stringify(d)))";
+            scriptEl.textContent = "fetch('https://api.liveschoolapp.com/v2/schools/" + idDisplay + "/behaviors', {credentials:'include'}).then(r=>r.json()).then(d=>console.log(JSON.stringify(d)))";
         }
         if (textareaEl && !textareaEl.value) {
             textareaEl.placeholder = 'Paste the JSON response from /v2/schools/' + idDisplay + '/behaviors here...';

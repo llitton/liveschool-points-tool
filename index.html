@@ -1063,7 +1063,7 @@
             </div>
             <div class="step-content">
                 <p class="step-description">Paste the behavior JSON from the LiveSchool API to map behavior names to IDs.</p>
-                <p class="hint">In the browser console while logged into LiveSchool, run: <code id="merge-behavior-fetch-script">fetch('/v2/schools/{schoolId}/behaviors', {credentials:'include'}).then(r=>r.json()).then(d=>console.log(JSON.stringify(d)))</code></p>
+                <p class="hint">In the browser console while logged into LiveSchool, run: <code id="merge-behavior-fetch-script">fetch('https://api.liveschoolapp.com/v2/schools/{schoolId}/behaviors', {credentials:'include'}).then(r=>r.json()).then(d=>console.log(JSON.stringify(d)))</code></p>
                 <textarea id="merge-behavior-json" placeholder='Paste the JSON response from /v2/schools/{schoolId}/behaviors here...' rows="4"></textarea>
                 <button id="merge-import-behaviors" class="btn primary">Import Behaviors</button>
                 <div id="merge-behavior-list" class="hidden">
