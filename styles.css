@@ -1989,6 +1989,65 @@ h1 {
     color: #822727;
 }
 
+/* Multi-file upload list */
+.files-list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+.files-list-header h4 {
+    font-size: 0.95rem;
+    color: #2d3748;
+}
+.btn.small {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+}
+#merge-log-files-items {
+    list-style: none;
+    margin-bottom: 0.75rem;
+}
+#merge-log-files-items li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.85rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+#merge-log-files-items li:last-child {
+    border-bottom: none;
+}
+.file-row-count {
+    color: #718096;
+    font-size: 0.8rem;
+}
+.filter-summary {
+    padding: 0.6rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+}
+.filter-summary.success {
+    background: #f0fff4;
+    border: 1px solid #9ae6b4;
+    color: #276749;
+}
+.filter-summary.warning {
+    background: #fffaf0;
+    border: 1px solid #fbd38d;
+    color: #7b341e;
+}
+
+#merge-log-files-list {
+    margin-top: 1rem;
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+}
+
 #merge-duplicate-results {
     margin-top: 1.5rem;
 }

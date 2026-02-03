@@ -2922,6 +2922,8 @@ const MergeApp = {
     originalStudentId: null,
     newStudentId: null,
     logData: null,
+    logFiles: [],
+    allLogRows: [],
     behaviorMap: [],
     behaviorNameToId: {},
     transactionGroups: [],
@@ -3003,13 +3005,18 @@ const MergeApp = {
             dropzone.addEventListener('drop', (e) => {
                 e.preventDefault();
                 dropzone.classList.remove('dragover');
-                const file = e.dataTransfer.files[0];
-                if (file) this.handleLogFile(file);
+                if (e.dataTransfer.files.length) this.handleLogFiles(e.dataTransfer.files);
             });
 
             fileInput.addEventListener('change', (e) => {
-                if (e.target.files[0]) this.handleLogFile(e.target.files[0]);
+                if (e.target.files.length) this.handleLogFiles(e.target.files);
             });
+        }
+
+        // Clear all log files button
+        const clearLogsBtn = document.getElementById('merge-clear-logs');
+        if (clearLogsBtn) {
+            clearLogsBtn.addEventListener('click', () => this.clearLogFiles());
         }
 
         // Import behaviors button
@@ -3356,9 +3363,15 @@ const MergeApp = {
         const schoolId = document.getElementById('merge-school-id').value.trim();
 
         if (originalId && newId && rosterId && locationId && schoolId) {
+            const prevOriginalId = this.originalStudentId;
             this.originalStudentId = originalId;
             this.newStudentId = newId;
             this.unlockStep('merge-step-upload');
+
+            // Re-filter log rows if original student ID changed and files are loaded
+            if (prevOriginalId !== originalId && this.allLogRows.length > 0) {
+                this.filterAndUpdateLogData();
+            }
         }
     },
 
@@ -3369,29 +3382,112 @@ const MergeApp = {
         }
     },
 
-    handleLogFile: async function(file) {
+    handleLogFiles: async function(files) {
         const statusEl = document.getElementById('merge-log-file-status');
         const dropzone = document.getElementById('merge-log-dropzone');
 
-        statusEl.textContent = 'Parsing...';
+        statusEl.textContent = 'Parsing ' + files.length + ' file' + (files.length > 1 ? 's' : '') + '...';
         statusEl.className = 'file-status loading';
 
         try {
-            this.logData = await Parser.parsePointsLog(file);
+            let headers = null;
 
-            const behaviorRows = this.logData.rows.filter(r => r['Type'] === 'Behavior');
-            const rewardRows = this.logData.rows.filter(r => r['Type'] === 'Reward');
+            for (const file of files) {
+                const parsed = await Parser.parsePointsLog(file);
+                if (!headers && parsed.headers.length) {
+                    headers = parsed.headers;
+                }
+                const totalRows = parsed.rows.length;
+                const matchedRows = parsed.rows.filter(r =>
+                    r['Student LiveSchool ID'] === this.originalStudentId
+                ).length;
 
-            statusEl.textContent = `Loaded ${this.logData.rows.length} rows (${behaviorRows.length} behaviors, ${rewardRows.length} rewards)`;
-            statusEl.className = 'file-status success';
+                this.allLogRows.push(...parsed.rows);
+                this.logFiles.push({ name: file.name, totalRows, matchedRows });
+            }
+
+            if (headers) {
+                this.logData = { headers, rows: [] };
+            }
+
+            this.filterAndUpdateLogData();
             dropzone.classList.add('has-file');
-
-            this.unlockStep('merge-step-behaviors');
-            this.updateSummary();
+            statusEl.textContent = this.logFiles.length + ' file' + (this.logFiles.length > 1 ? 's' : '') + ' loaded';
+            statusEl.className = 'file-status success';
         } catch (error) {
             statusEl.textContent = 'Error: ' + error.message;
             statusEl.className = 'file-status error';
         }
+    },
+
+    filterAndUpdateLogData: function() {
+        const filtered = this.allLogRows.filter(r =>
+            r['Student LiveSchool ID'] === this.originalStudentId
+        );
+
+        if (this.logData) {
+            this.logData.rows = filtered;
+        } else {
+            this.logData = { headers: [], rows: filtered };
+        }
+
+        const behaviorRows = filtered.filter(r => r['Type'] === 'Behavior');
+        const rewardRows = filtered.filter(r => r['Type'] === 'Reward');
+        const totalRows = this.allLogRows.length;
+
+        // Update file list UI
+        const listContainer = document.getElementById('merge-log-files-list');
+        const itemsEl = document.getElementById('merge-log-files-items');
+        const summaryEl = document.getElementById('merge-log-filter-summary');
+
+        if (listContainer && this.logFiles.length > 0) {
+            listContainer.classList.remove('hidden');
+
+            itemsEl.innerHTML = this.logFiles.map(f =>
+                '<li>' + this.escapeHtml(f.name) +
+                ' <span class="file-row-count">' + f.matchedRows + ' / ' + f.totalRows + ' rows matched</span></li>'
+            ).join('');
+
+            if (filtered.length > 0) {
+                summaryEl.className = 'filter-summary success';
+                summaryEl.textContent = filtered.length + ' rows for student ' + this.originalStudentId +
+                    ' (' + behaviorRows.length + ' behaviors, ' + rewardRows.length + ' rewards)' +
+                    ' out of ' + totalRows + ' total rows across ' + this.logFiles.length + ' file' +
+                    (this.logFiles.length > 1 ? 's' : '');
+            } else {
+                summaryEl.className = 'filter-summary warning';
+                summaryEl.textContent = '0 rows found for student ' + this.originalStudentId +
+                    ' out of ' + totalRows + ' total rows. Check the student ID is correct.';
+            }
+        }
+
+        if (filtered.length > 0) {
+            this.unlockStep('merge-step-behaviors');
+        }
+        this.updateSummary();
+    },
+
+    clearLogFiles: function() {
+        this.logFiles = [];
+        this.allLogRows = [];
+        this.logData = null;
+
+        const statusEl = document.getElementById('merge-log-file-status');
+        const dropzone = document.getElementById('merge-log-dropzone');
+        const listContainer = document.getElementById('merge-log-files-list');
+        const fileInput = document.getElementById('merge-log-file');
+
+        if (statusEl) { statusEl.textContent = ''; statusEl.className = 'file-status'; }
+        if (dropzone) dropzone.classList.remove('has-file');
+        if (listContainer) listContainer.classList.add('hidden');
+        if (fileInput) fileInput.value = '';
+
+        // Re-lock downstream steps
+        ['merge-step-behaviors', 'merge-step-review', 'merge-step-generate'].forEach(id => {
+            const step = document.getElementById(id);
+            if (step) step.classList.add('locked');
+        });
+        this.updateSummary();
     },
 
     importBehaviors: function() {
@@ -4125,10 +4221,12 @@ ${hasRewards ? `
 
         // Points log status
         const logSummary = document.getElementById('merge-summary-log');
-        if (this.logData) {
+        if (this.logData && this.logData.rows.length > 0) {
             logSummary.querySelector('.summary-icon').textContent = '✓';
             logSummary.querySelector('.summary-icon').classList.add('complete');
-            logSummary.querySelector('.summary-label').textContent = `${this.logData.rows.length} rows`;
+            const fileCount = this.logFiles.length;
+            logSummary.querySelector('.summary-label').textContent =
+                `${this.logData.rows.length} rows` + (fileCount > 1 ? ` (${fileCount} files)` : '');
         }
 
         // Behaviors status
@@ -4204,7 +4302,7 @@ const Onboarding = {
     checkFirstVisit: function() {
         const hasVisited = localStorage.getItem('liveschool-points-visited');
         const lastVersion = localStorage.getItem('liveschool-points-version');
-        const currentVersion = '2.6.0';
+        const currentVersion = '2.7.0';
 
         if (!hasVisited) {
             // First visit - show welcome

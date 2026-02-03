@@ -670,6 +670,14 @@ First-visit and version tracking uses localStorage keys:
 
 ## Changelog
 
+### v2.7.0 (February 2026)
+- **Improved: Merge Students** - Multi-file upload + auto-filtering in Step 3
+- Upload multiple Points Log exports (monthly site-wide TSV files) at once
+- Rows automatically filtered to the original student by `Student LiveSchool ID` column
+- File list shows per-file match counts and overall filtering summary
+- "Clear All" button to reset and re-upload
+- Re-filters automatically if original student ID changes after upload
+
 ### v2.6.0 (February 2026)
 - **Improved: Merge Students** - Config auto-discovery in Step 2
 - Paste the `metrics-new` fetch call from DevTools to auto-extract School ID and Roster ID

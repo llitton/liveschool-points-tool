@@ -96,6 +96,12 @@
             </div>
             <div class="modal-body changelog-body">
                 <div class="changelog-entry">
+                    <div class="changelog-version">v2.7.0 <span class="changelog-date">February 2026</span></div>
+                    <ul>
+                        <li><strong>Improved: Merge Students</strong> - Upload multiple Points Log files at once</li>
+                        <li>Rows are automatically filtered to the original student — no need to pre-filter site-wide exports</li>
+                        <li>File list shows per-file match counts and overall filtering summary</li>
+                    </ul>
                     <div class="changelog-version">v2.6.0 <span class="changelog-date">February 2026</span></div>
                     <ul>
                         <li><strong>Improved: Merge Students</strong> - Config auto-discovery: extract School ID, Roster ID, and Location ID without giving a sample point</li>
@@ -1007,7 +1013,7 @@
                 <span class="lock-icon" title="Enter student IDs and site config to unlock">🔒</span>
             </div>
             <div class="step-content">
-                <p class="step-description">Upload the extended data export (TSV) for the original student's transaction history.</p>
+                <p class="step-description">Upload one or more Points Log exports (TSV). Rows are automatically filtered to the original student.</p>
                 <div class="upload-box single" id="merge-log-dropzone">
                     <div class="dropzone-content">
                         <div class="upload-icon csv-icon">
@@ -1016,16 +1022,24 @@
                                 <text x="24" y="28" text-anchor="middle" fill="white" font-size="10" font-weight="bold">TSV</text>
                             </svg>
                         </div>
-                        <label for="merge-log-file">Extended Data Export (TSV)</label>
-                        <input type="file" id="merge-log-file" accept=".tsv,.csv,.txt">
-                        <button type="button" class="select-file-btn">Select File</button>
-                        <p class="upload-hint">or drag & drop here</p>
+                        <label for="merge-log-file">Points Log Exports (TSV)</label>
+                        <input type="file" id="merge-log-file" accept=".tsv,.csv,.txt" multiple>
+                        <button type="button" class="select-file-btn">Select Files</button>
+                        <p class="upload-hint">or drag & drop here (multiple files OK)</p>
                         <p class="upload-desc">
                             Tab-separated export with Record ID, Behavior Name, Date, Time
-                            <span class="help-tooltip" title="Export from LiveSchool: Extended Data export. Must contain columns: Record ID, Behavior / Reward Name, Official Date, Official Time, Type.">?</span>
+                            <span class="help-tooltip" title="Export from LiveSchool: Extended Data / Points Log export. Upload multiple monthly files — only rows for the original student are kept.">?</span>
                         </p>
                     </div>
                     <div id="merge-log-file-status" class="file-status"></div>
+                </div>
+                <div id="merge-log-files-list" class="hidden">
+                    <div class="files-list-header">
+                        <h4>Uploaded Files</h4>
+                        <button id="merge-clear-logs" class="btn secondary small">Clear All</button>
+                    </div>
+                    <ul id="merge-log-files-items"></ul>
+                    <div id="merge-log-filter-summary" class="filter-summary"></div>
                 </div>
             </div>
         </section>
