@@ -3412,7 +3412,7 @@ const MergeApp = {
             textareaEl.placeholder = 'Paste the JSON response from /v2/schools/' + idDisplay + '/behaviors here...';
         }
         if (incentiveScriptEl) {
-            incentiveScriptEl.textContent = "(()=>{var r=window.store&&window.store.state&&window.store.state.site&&window.store.state.site.rewards;if(!r||!r.length){console.log('No rewards found. Make sure you are on the LiveSchool app page (liveschoolapp.com).');return}var active=r.filter(i=>!i.archived);console.log(active.length+' active rewards ('+r.length+' total):');active.forEach(i=>console.log(i.id+': '+i.name.trim()+' ('+i.value+' pts)'))})()";
+            incentiveScriptEl.textContent = "(()=>{var r=window.store&&window.store.state&&window.store.state.site&&window.store.state.site.rewards;if(!r||typeof r!=='object'){console.log('No rewards found. Make sure you are on the LiveSchool app page (liveschoolapp.com).');return}var all=Array.isArray(r)?r:Object.values(r);var active=all.filter(i=>i.id&&!i.archived);console.log(active.length+' active rewards ('+all.length+' total):');active.forEach(i=>console.log(i.id+': '+i.name.trim()+' ('+i.value+' pts)'))})()";
         }
     },
 
