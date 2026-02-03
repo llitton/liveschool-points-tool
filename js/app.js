@@ -2921,6 +2921,7 @@ const MergeApp = {
     duplicateGroups: [],
     originalStudentId: null,
     newStudentId: null,
+    studentName: null,
     logData: null,
     logFiles: [],
     allLogRows: [],
@@ -2949,6 +2950,19 @@ const MergeApp = {
                 });
             }
         });
+
+        // Student name field (fallback for Points Log filtering)
+        const nameEl = document.getElementById('merge-student-name');
+        if (nameEl) {
+            nameEl.addEventListener('input', () => {
+                const prev = this.studentName;
+                this.studentName = nameEl.value.trim() || null;
+                if (prev !== this.studentName && this.allLogRows.length > 0) {
+                    this.recomputePerFileMatches();
+                    this.filterAndUpdateLogData();
+                }
+            });
+        }
 
         // CSV file upload (Step 1 - Find Duplicates)
         const csvDropzone = document.getElementById('merge-csv-dropzone');
@@ -3199,6 +3213,12 @@ const MergeApp = {
         document.getElementById('merge-original-id').value = srcId;
         document.getElementById('merge-new-id').value = tgtId;
 
+        // Auto-populate student name for Points Log filtering fallback
+        const fullName = group.firstName + ' ' + group.lastName;
+        this.studentName = fullName;
+        const nameEl = document.getElementById('merge-student-name');
+        if (nameEl) nameEl.value = fullName;
+
         // Trigger input events to update summary
         document.getElementById('merge-original-id').dispatchEvent(new Event('input'));
         document.getElementById('merge-new-id').dispatchEvent(new Event('input'));
@@ -3370,6 +3390,7 @@ const MergeApp = {
 
             // Re-filter log rows if original student ID changed and files are loaded
             if (prevOriginalId !== originalId && this.allLogRows.length > 0) {
+                this.recomputePerFileMatches();
                 this.filterAndUpdateLogData();
             }
         }
@@ -3379,6 +3400,54 @@ const MergeApp = {
         const step = document.getElementById(stepId);
         if (step) {
             step.classList.remove('locked');
+        }
+    },
+
+    // Returns a filter function and method label for Points Log rows.
+    // Tries ID match first; falls back to name match if ID yields 0 results.
+    getLogRowFilter: function(rows) {
+        const idFiltered = rows.filter(r =>
+            r['Student LiveSchool ID'] === this.originalStudentId
+        );
+        if (idFiltered.length > 0) {
+            return {
+                fn: r => r['Student LiveSchool ID'] === this.originalStudentId,
+                method: 'id'
+            };
+        }
+
+        // Fallback: match by student name (case-insensitive)
+        if (this.studentName) {
+            const nameLower = this.studentName.trim().toLowerCase();
+            const nameFiltered = rows.filter(r =>
+                (r['Student'] || '').trim().toLowerCase() === nameLower
+            );
+            if (nameFiltered.length > 0) {
+                // Detect the actual Student LiveSchool ID from the matched rows
+                const foundId = nameFiltered[0]['Student LiveSchool ID'];
+                return {
+                    fn: r => (r['Student'] || '').trim().toLowerCase() === nameLower,
+                    method: 'name',
+                    foundId: foundId
+                };
+            }
+        }
+
+        // No matches by either method
+        return {
+            fn: r => r['Student LiveSchool ID'] === this.originalStudentId,
+            method: 'none'
+        };
+    },
+
+    // Recompute per-file matched row counts (called when filter criteria change)
+    recomputePerFileMatches: function() {
+        const filter = this.getLogRowFilter(this.allLogRows);
+        let offset = 0;
+        for (const fileMeta of this.logFiles) {
+            const fileRows = this.allLogRows.slice(offset, offset + fileMeta.totalRows);
+            fileMeta.matchedRows = fileRows.filter(filter.fn).length;
+            offset += fileMeta.totalRows;
         }
     },
 
@@ -3398,13 +3467,13 @@ const MergeApp = {
                     headers = parsed.headers;
                 }
                 const totalRows = parsed.rows.length;
-                const matchedRows = parsed.rows.filter(r =>
-                    r['Student LiveSchool ID'] === this.originalStudentId
-                ).length;
 
                 this.allLogRows.push(...parsed.rows);
-                this.logFiles.push({ name: file.name, totalRows, matchedRows });
+                this.logFiles.push({ name: file.name, totalRows, matchedRows: 0 });
             }
+
+            // Compute per-file matches using ID-first, name-fallback filter
+            this.recomputePerFileMatches();
 
             if (headers) {
                 this.logData = { headers, rows: [] };
@@ -3421,9 +3490,8 @@ const MergeApp = {
     },
 
     filterAndUpdateLogData: function() {
-        const filtered = this.allLogRows.filter(r =>
-            r['Student LiveSchool ID'] === this.originalStudentId
-        );
+        const filter = this.getLogRowFilter(this.allLogRows);
+        const filtered = this.allLogRows.filter(filter.fn);
 
         if (this.logData) {
             this.logData.rows = filtered;
@@ -3449,15 +3517,30 @@ const MergeApp = {
             ).join('');
 
             if (filtered.length > 0) {
-                summaryEl.className = 'filter-summary success';
-                summaryEl.textContent = filtered.length + ' rows for student ' + this.originalStudentId +
-                    ' (' + behaviorRows.length + ' behaviors, ' + rewardRows.length + ' rewards)' +
-                    ' out of ' + totalRows + ' total rows across ' + this.logFiles.length + ' file' +
-                    (this.logFiles.length > 1 ? 's' : '');
+                if (filter.method === 'name') {
+                    summaryEl.className = 'filter-summary success';
+                    summaryEl.innerHTML = filtered.length + ' rows matched by name <strong>"' +
+                        this.escapeHtml(this.studentName) + '"</strong>' +
+                        ' (' + behaviorRows.length + ' behaviors, ' + rewardRows.length + ' rewards)' +
+                        ' out of ' + totalRows + ' total rows across ' + this.logFiles.length + ' file' +
+                        (this.logFiles.length > 1 ? 's' : '') +
+                        '.<br><span class="filter-note">⚠ Student LiveSchool ID in export is <strong>' +
+                        this.escapeHtml(filter.foundId) + '</strong>, not ' +
+                        this.escapeHtml(this.originalStudentId) +
+                        '. This is likely an older record for the same student.</span>';
+                } else {
+                    summaryEl.className = 'filter-summary success';
+                    summaryEl.textContent = filtered.length + ' rows for student ' + this.originalStudentId +
+                        ' (' + behaviorRows.length + ' behaviors, ' + rewardRows.length + ' rewards)' +
+                        ' out of ' + totalRows + ' total rows across ' + this.logFiles.length + ' file' +
+                        (this.logFiles.length > 1 ? 's' : '');
+                }
             } else {
                 summaryEl.className = 'filter-summary warning';
                 summaryEl.textContent = '0 rows found for student ' + this.originalStudentId +
-                    ' out of ' + totalRows + ' total rows. Check the student ID is correct.';
+                    (this.studentName ? ' or name "' + this.studentName + '"' : '') +
+                    ' out of ' + totalRows + ' total rows.' +
+                    (this.studentName ? '' : ' Try entering the student name for name-based matching.');
             }
         }
 
@@ -4302,7 +4385,7 @@ const Onboarding = {
     checkFirstVisit: function() {
         const hasVisited = localStorage.getItem('liveschool-points-visited');
         const lastVersion = localStorage.getItem('liveschool-points-version');
-        const currentVersion = '2.7.0';
+        const currentVersion = '2.8.0';
 
         if (!hasVisited) {
             // First visit - show welcome

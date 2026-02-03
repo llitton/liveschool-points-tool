@@ -364,6 +364,105 @@
         });
 
         // ============================================
+        // MergeApp.getLogRowFilter Tests
+        // ============================================
+
+        // Standalone version of getLogRowFilter for testing (mirrors MergeApp implementation)
+        function getLogRowFilter(rows, originalStudentId, studentName) {
+            const idFiltered = rows.filter(r =>
+                r['Student LiveSchool ID'] === originalStudentId
+            );
+            if (idFiltered.length > 0) {
+                return {
+                    fn: r => r['Student LiveSchool ID'] === originalStudentId,
+                    method: 'id'
+                };
+            }
+            if (studentName) {
+                const nameLower = studentName.trim().toLowerCase();
+                const nameFiltered = rows.filter(r =>
+                    (r['Student'] || '').trim().toLowerCase() === nameLower
+                );
+                if (nameFiltered.length > 0) {
+                    const foundId = nameFiltered[0]['Student LiveSchool ID'];
+                    return {
+                        fn: r => (r['Student'] || '').trim().toLowerCase() === nameLower,
+                        method: 'name',
+                        foundId: foundId
+                    };
+                }
+            }
+            return {
+                fn: r => r['Student LiveSchool ID'] === originalStudentId,
+                method: 'none'
+            };
+        }
+
+        // Sample Points Log rows for filter tests
+        const sampleLogRows = [
+            { 'Student': 'Kiarra Hermel', 'Student LiveSchool ID': '2537394', 'Type': 'Behavior', 'Behavior / Reward Name': 'Activity day' },
+            { 'Student': 'Kiarra Hermel', 'Student LiveSchool ID': '2537394', 'Type': 'Behavior', 'Behavior / Reward Name': 'Homework' },
+            { 'Student': 'Ryker Anderson', 'Student LiveSchool ID': '2483049', 'Type': 'Behavior', 'Behavior / Reward Name': 'Activity day' },
+            { 'Student': 'Axel Gabel', 'Student LiveSchool ID': '2186106', 'Type': 'Behavior', 'Behavior / Reward Name': 'Activity day' }
+        ];
+
+        test('getLogRowFilter - matches by ID when ID exists in rows', () => {
+            const filter = getLogRowFilter(sampleLogRows, '2537394', null);
+            assertEqual(filter.method, 'id', 'Should use ID matching');
+            const matched = sampleLogRows.filter(filter.fn);
+            assertEqual(matched.length, 2, 'Should match 2 rows for Kiarra');
+        });
+
+        test('getLogRowFilter - falls back to name when ID has no matches', () => {
+            // Using a current roster ID that doesn't appear in the log
+            const filter = getLogRowFilter(sampleLogRows, '4097396', 'Kiarra Hermel');
+            assertEqual(filter.method, 'name', 'Should fall back to name matching');
+            assertEqual(filter.foundId, '2537394', 'Should detect the actual ID in the export');
+            const matched = sampleLogRows.filter(filter.fn);
+            assertEqual(matched.length, 2, 'Should match 2 rows for Kiarra by name');
+        });
+
+        test('getLogRowFilter - name matching is case-insensitive', () => {
+            const filter = getLogRowFilter(sampleLogRows, '9999999', 'kiarra hermel');
+            assertEqual(filter.method, 'name', 'Should match despite case difference');
+            const matched = sampleLogRows.filter(filter.fn);
+            assertEqual(matched.length, 2, 'Should match 2 rows');
+        });
+
+        test('getLogRowFilter - returns none when neither ID nor name matches', () => {
+            const filter = getLogRowFilter(sampleLogRows, '9999999', 'Nobody Here');
+            assertEqual(filter.method, 'none', 'Should return none');
+            const matched = sampleLogRows.filter(filter.fn);
+            assertEqual(matched.length, 0, 'Should match 0 rows');
+        });
+
+        test('getLogRowFilter - returns none when no student name provided', () => {
+            const filter = getLogRowFilter(sampleLogRows, '9999999', null);
+            assertEqual(filter.method, 'none', 'Should return none without name fallback');
+            const matched = sampleLogRows.filter(filter.fn);
+            assertEqual(matched.length, 0, 'Should match 0 rows');
+        });
+
+        test('getLogRowFilter - prefers ID match over name match', () => {
+            // ID matches Ryker, name matches Kiarra — ID should win
+            const filter = getLogRowFilter(sampleLogRows, '2483049', 'Kiarra Hermel');
+            assertEqual(filter.method, 'id', 'Should prefer ID matching');
+            const matched = sampleLogRows.filter(filter.fn);
+            assertEqual(matched.length, 1, 'Should match 1 row for Ryker by ID');
+            assertEqual(matched[0]['Student'], 'Ryker Anderson', 'Matched row should be Ryker');
+        });
+
+        test('getLogRowFilter - handles whitespace in student name column', () => {
+            const rowsWithSpaces = [
+                { 'Student': '  Kiarra Hermel  ', 'Student LiveSchool ID': '2537394', 'Type': 'Behavior' }
+            ];
+            const filter = getLogRowFilter(rowsWithSpaces, '9999999', 'Kiarra Hermel');
+            assertEqual(filter.method, 'name', 'Should match despite whitespace in data');
+            const matched = rowsWithSpaces.filter(filter.fn);
+            assertEqual(matched.length, 1, 'Should match 1 row');
+        });
+
+        // ============================================
         // Integration Tests
         // ============================================
 

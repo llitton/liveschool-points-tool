@@ -96,6 +96,13 @@
             </div>
             <div class="modal-body changelog-body">
                 <div class="changelog-entry">
+                    <div class="changelog-version">v2.8.0 <span class="changelog-date">February 2026</span></div>
+                    <ul>
+                        <li><strong>Improved: Merge Students</strong> - Name-based fallback for Points Log filtering</li>
+                        <li>When the Student LiveSchool ID in the export doesn't match the entered ID, rows are matched by student name instead</li>
+                        <li>New "Student Name" field in Step 2 (auto-populated from duplicate finder)</li>
+                        <li>Summary shows the mismatched ID from the export so you can see which old record the transactions belong to</li>
+                    </ul>
                     <div class="changelog-version">v2.7.0 <span class="changelog-date">February 2026</span></div>
                     <ul>
                         <li><strong>Improved: Merge Students</strong> - Upload multiple Points Log files at once</li>
@@ -947,6 +954,10 @@
                     <div class="config-field">
                         <label for="merge-new-id">New Student ID (target)</label>
                         <input type="text" id="merge-new-id" placeholder="e.g., 4149727">
+                    </div>
+                    <div class="config-field">
+                        <label for="merge-student-name">Student Name <span class="hint">(fallback for Points Log filtering)</span></label>
+                        <input type="text" id="merge-student-name" placeholder="e.g., Kiarra Hermel">
                     </div>
                 </div>
                 <h4 style="margin-top: 1.5rem;">Site Configuration</h4>

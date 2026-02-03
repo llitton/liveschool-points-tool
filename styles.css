@@ -2039,6 +2039,12 @@ h1 {
     border: 1px solid #fbd38d;
     color: #7b341e;
 }
+.filter-note {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.8rem;
+    color: #975a16;
+}
 
 #merge-log-files-list {
     margin-top: 1rem;

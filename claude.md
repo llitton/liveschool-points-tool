@@ -69,9 +69,9 @@ Use this mode when a school has duplicate student records (e.g., one manually cr
 
 1. Click "Merge Students" toggle at the top
 2. (Optional) Upload the LiveSchool CSV export to find duplicate students — click "Use These IDs" to auto-fill
-3. Enter the Original Student ID (source) and New Student ID (target)
+3. Enter the Original Student ID (source) and New Student ID (target), plus the Student Name (auto-populated from duplicate finder, or enter manually)
 4. Enter the Roster ID, Location ID, School ID, and optionally User ID (required for purchases)
-5. Upload one or more Points Log exports (TSV) — rows are automatically filtered to the original student
+5. Upload one or more Points Log exports (TSV) — rows are filtered by Student LiveSchool ID, with automatic fallback to name matching if the ID doesn't match
 6. Paste the behavior JSON (from `GET /v2/schools/{schoolId}/behaviors`) to map behavior names to IDs
 7. Click "Parse Transactions" to review mapped/unmapped behaviors, purchases, and transaction groups
 8. Resolve any unmapped behaviors (dropdown) or rewards (enter incentive IDs)
@@ -655,6 +655,7 @@ Behavior names from the export are matched to IDs from the behavior JSON using c
 - **The conducts API accepts backdated dates**: The `date` field can be set to historical dates for behavior transactions
 - **Multiple behaviors per Record ID**: When a teacher gave multiple behaviors at once (same Record ID), they are combined into a single API call with multiple entries in the `behaviors` object
 - **Multi-file upload**: Step 3 accepts multiple Points Log exports (e.g., monthly site-wide TSV files). Rows are automatically filtered to the original student by `Student LiveSchool ID` column — no need to pre-filter exports before uploading
+- **Name-based filtering fallback**: If the `Student LiveSchool ID` in the Points Log doesn't match the Original Student ID entered in Step 2 (e.g., the student had an older record with a different ID), filtering falls back to matching by the `Student` name column (case-insensitive). The Student Name field in Step 2 is auto-populated from the duplicate finder or can be entered manually. When name matching is used, the summary shows the actual ID found in the export.
 
 ## Onboarding & Help
 
@@ -670,6 +671,13 @@ First-visit and version tracking uses localStorage keys:
 - `liveschool-points-version`: Last version user has seen
 
 ## Changelog
+
+### v2.8.0 (February 2026)
+- **Improved: Merge Students** - Name-based fallback for Points Log filtering
+- New "Student Name" field in Step 2 (auto-populated from duplicate finder, or enter manually)
+- When the Student LiveSchool ID in the export doesn't match, rows are matched by student name instead (case-insensitive)
+- Summary shows the mismatched ID from the export (e.g., older record with different ID)
+- Handles cases where a student's transaction history is under a different LiveSchool ID than their current record
 
 ### v2.7.0 (February 2026)
 - **Improved: Merge Students** - Multi-file upload + auto-filtering in Step 3
