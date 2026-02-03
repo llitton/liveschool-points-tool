@@ -985,33 +985,50 @@
 
                     <div id="merge-discovery-container" class="hidden">
                         <div class="discovery-part">
-                            <h4>Step A: School ID & Roster ID</h4>
-                            <p class="hint">In LiveSchool, open DevTools (F12) &gt; Network tab &gt; refresh the Points page &gt; find the request to <code>metrics-new</code> &gt; right-click it &gt; Copy &gt; Copy as fetch. Paste below:</p>
-                            <div class="import-row">
-                                <textarea id="merge-discovery-fetch" placeholder="Paste the copied fetch call here..." rows="3"></textarea>
-                                <button id="merge-extract-ids" class="btn primary">Extract IDs</button>
+                            <h4>All-in-One Discovery</h4>
+                            <p class="hint">Copy this script, paste it in the browser console on the LiveSchool app page (liveschoolapp.com), then paste the JSON output below. This discovers all IDs, behaviors, and rewards at once.</p>
+                            <div class="discovery-actions">
+                                <pre class="discovery-code"><code id="merge-allinone-script-code"></code></pre>
+                                <button id="merge-copy-allinone-script" class="copy-btn">Copy Script</button>
                             </div>
-                            <div id="merge-discovery-ids-result" class="hidden"></div>
+                            <div class="import-row">
+                                <textarea id="merge-allinone-output" placeholder="Paste the JSON output here..." rows="4"></textarea>
+                                <button id="merge-import-allinone" class="btn primary">Import All</button>
+                            </div>
+                            <div id="merge-allinone-result" class="hidden"></div>
                         </div>
 
-                        <div class="discovery-part">
-                            <h4>Step B: Location ID (& Roster ID)</h4>
-                            <p class="hint">Copy this script, run it in the LiveSchool browser console, then paste the output below. This also discovers the Roster ID if Step A didn't find it.</p>
-                            <div id="merge-location-script-container" class="hidden">
-                                <div class="discovery-actions">
-                                    <pre class="discovery-code"><code id="merge-location-script-code"></code></pre>
-                                    <button id="merge-copy-location-script" class="copy-btn">Copy Script</button>
+                        <details class="manual-discovery">
+                            <summary class="hint">Manual discovery (if All-in-One doesn't work)</summary>
+                            <div class="discovery-part">
+                                <h4>Step A: School ID & Roster ID</h4>
+                                <p class="hint">In LiveSchool, open DevTools (F12) &gt; Network tab &gt; refresh the Points page &gt; find the request to <code>metrics-new</code> &gt; right-click it &gt; Copy &gt; Copy as fetch. Paste below:</p>
+                                <div class="import-row">
+                                    <textarea id="merge-discovery-fetch" placeholder="Paste the copied fetch call here..." rows="3"></textarea>
+                                    <button id="merge-extract-ids" class="btn primary">Extract IDs</button>
                                 </div>
+                                <div id="merge-discovery-ids-result" class="hidden"></div>
                             </div>
-                            <div id="merge-location-script-placeholder">
-                                <p class="hint">Enter a School ID and a Student ID above to generate the discovery script.</p>
+
+                            <div class="discovery-part">
+                                <h4>Step B: Location ID (& Roster ID)</h4>
+                                <p class="hint">Copy this script, run it in the LiveSchool browser console, then paste the output below. This also discovers the Roster ID if Step A didn't find it.</p>
+                                <div id="merge-location-script-container" class="hidden">
+                                    <div class="discovery-actions">
+                                        <pre class="discovery-code"><code id="merge-location-script-code"></code></pre>
+                                        <button id="merge-copy-location-script" class="copy-btn">Copy Script</button>
+                                    </div>
+                                </div>
+                                <div id="merge-location-script-placeholder">
+                                    <p class="hint">Enter a School ID and a Student ID above to generate the discovery script.</p>
+                                </div>
+                                <div class="import-row">
+                                    <textarea id="merge-discovery-location" placeholder="Paste the console output here..." rows="3"></textarea>
+                                    <button id="merge-extract-location" class="btn primary">Extract Location</button>
+                                </div>
+                                <div id="merge-discovery-location-result" class="hidden"></div>
                             </div>
-                            <div class="import-row">
-                                <textarea id="merge-discovery-location" placeholder="Paste the console output here..." rows="3"></textarea>
-                                <button id="merge-extract-location" class="btn primary">Extract Location</button>
-                            </div>
-                            <div id="merge-discovery-location-result" class="hidden"></div>
-                        </div>
+                        </details>
                     </div>
                 </div>
             </div>

@@ -2933,6 +2933,7 @@ const MergeApp = {
     unmappedRewards: [],
     manualBehaviorMaps: {},
     manualRewardMaps: {},
+    discoveredRewards: {},
 
     init: function() {
         this.bindEvents();
@@ -3061,6 +3062,33 @@ const MergeApp = {
                 toggleDiscoveryBtn.textContent = isHidden ? 'Hide Config Discovery' : 'Show Config Discovery';
             });
         }
+
+        // All-in-one discovery: copy script
+        const copyAllinoneBtn = document.getElementById('merge-copy-allinone-script');
+        if (copyAllinoneBtn) {
+            copyAllinoneBtn.addEventListener('click', () => {
+                const code = document.getElementById('merge-allinone-script-code');
+                if (code && code.textContent) {
+                    navigator.clipboard.writeText(code.textContent).then(() => {
+                        copyAllinoneBtn.textContent = 'Copied!';
+                        copyAllinoneBtn.classList.add('copied');
+                        setTimeout(() => {
+                            copyAllinoneBtn.textContent = 'Copy Script';
+                            copyAllinoneBtn.classList.remove('copied');
+                        }, 2000);
+                    });
+                }
+            });
+        }
+
+        // All-in-one discovery: import
+        const importAllinoneBtn = document.getElementById('merge-import-allinone');
+        if (importAllinoneBtn) {
+            importAllinoneBtn.addEventListener('click', () => this.importAllinoneDiscovery());
+        }
+
+        // Generate the all-in-one script on load
+        this.updateAllinOneScript();
 
         // Extract school + roster from pasted fetch
         const extractIdsBtn = document.getElementById('merge-extract-ids');
@@ -3396,6 +3424,146 @@ const MergeApp = {
                 this.recomputePerFileMatches();
                 this.filterAndUpdateLogData();
             }
+        }
+    },
+
+    updateAllinOneScript: function() {
+        const codeEl = document.getElementById('merge-allinone-script-code');
+        if (!codeEl) return;
+
+        codeEl.textContent = "(()=>{" +
+            "var st=window.store&&window.store.state&&window.store.state.site;" +
+            "if(!st){console.log('ERROR: No store found. Run this on liveschoolapp.com.');return}" +
+            "var out={};" +
+            // Site / School ID
+            "if(st.site)out.schoolId=st.site.id||st.site.school_id||null;" +
+            // Rosters
+            "var rosters=st.rosters;" +
+            "if(rosters&&typeof rosters==='object'){" +
+            "var ra=Array.isArray(rosters)?rosters:Object.values(rosters);" +
+            "out.rosters=ra.filter(r=>r.id).map(r=>({id:r.id,name:r.name||''}))" +
+            "}" +
+            // Locations
+            "var locs=st.locations;" +
+            "if(locs&&typeof locs==='object'){" +
+            "var la=Array.isArray(locs)?locs:Object.values(locs);" +
+            "out.locations=la.filter(l=>l.id).map(l=>({id:l.id,name:l.name||''}))" +
+            "}" +
+            // Behaviors
+            "var beh=st.behaviors;" +
+            "if(beh&&typeof beh==='object'){" +
+            "var ba=Array.isArray(beh)?beh:Object.values(beh);" +
+            "out.behaviors=ba.filter(b=>b.id&&!b.hidden).map(b=>({id:String(b.id),name:(b.name||'').trim(),type:b.type==='negative'?'demerit':'merit'}))" +
+            "}" +
+            // Rewards / Incentives
+            "var rew=st.rewards;" +
+            "if(rew&&typeof rew==='object'){" +
+            "var rwa=Array.isArray(rew)?rew:Object.values(rew);" +
+            "out.rewards=rwa.filter(r=>r.id&&!r.archived).map(r=>({id:r.id,name:(r.name||'').trim(),value:r.value}))" +
+            "}" +
+            // Users (for User ID)
+            "var auth=st.auth;" +
+            "if(auth&&auth.id)out.userId=auth.id;" +
+            "console.log(JSON.stringify(out));" +
+            "console.log('=== Copy the line above and paste into the Points Tool ===')" +
+            "})()";
+    },
+
+    importAllinoneDiscovery: function() {
+        const textarea = document.getElementById('merge-allinone-output');
+        const resultEl = document.getElementById('merge-allinone-result');
+        const text = (textarea && textarea.value || '').trim();
+
+        if (!text) {
+            alert('Please paste the JSON output from the discovery script.');
+            return;
+        }
+
+        try {
+            const data = JSON.parse(text);
+            const messages = [];
+
+            // School ID
+            if (data.schoolId) {
+                document.getElementById('merge-school-id').value = data.schoolId;
+                messages.push('School ID: ' + data.schoolId);
+            }
+
+            // Roster ID (use first roster)
+            if (data.rosters && data.rosters.length > 0) {
+                const roster = data.rosters[0];
+                document.getElementById('merge-roster-id').value = roster.id;
+                messages.push('Roster ID: ' + roster.id + (roster.name ? ' (' + roster.name + ')' : ''));
+            }
+
+            // Location ID (use first location)
+            if (data.locations && data.locations.length > 0) {
+                const loc = data.locations[0];
+                document.getElementById('merge-location-id').value = loc.id;
+                messages.push('Location ID: ' + loc.id + (loc.name ? ' (' + loc.name + ')' : ''));
+            }
+
+            // User ID
+            if (data.userId) {
+                document.getElementById('merge-user-id').value = data.userId;
+                messages.push('User ID: ' + data.userId);
+            }
+
+            // Trigger input events to update state
+            ['merge-school-id', 'merge-roster-id', 'merge-location-id', 'merge-user-id'].forEach(id => {
+                document.getElementById(id).dispatchEvent(new Event('input'));
+            });
+
+            // Import behaviors into Step 4
+            if (data.behaviors && data.behaviors.length > 0) {
+                this.behaviorMap = data.behaviors;
+                this.behaviorNameToId = {};
+                this.behaviorMap.forEach(b => {
+                    const key = b.name.toLowerCase().trim();
+                    this.behaviorNameToId[key] = { id: b.id, type: b.type };
+                });
+
+                // Update Step 4 UI
+                const listEl = document.getElementById('merge-behavior-list');
+                const itemsEl = document.getElementById('merge-behavior-items');
+                const countEl = document.getElementById('merge-behavior-count');
+                if (countEl) countEl.textContent = this.behaviorMap.length;
+                if (itemsEl) {
+                    itemsEl.innerHTML = this.behaviorMap.map(b =>
+                        '<div class="merge-behavior-chip"><span>' + this.escapeHtml(b.name) +
+                        '</span><span class="behavior-type-badge ' + b.type + '">' + b.type + '</span></div>'
+                    ).join('');
+                }
+                if (listEl) listEl.classList.remove('hidden');
+                messages.push('Behaviors: ' + this.behaviorMap.length + ' imported');
+            }
+
+            // Store reward IDs for later mapping
+            if (data.rewards && data.rewards.length > 0) {
+                this.discoveredRewards = {};
+                data.rewards.forEach(r => {
+                    this.discoveredRewards[r.name.toLowerCase().trim()] = String(r.id);
+                });
+                messages.push('Rewards: ' + data.rewards.length + ' stored for auto-mapping');
+            }
+
+            // Show results
+            resultEl.classList.remove('hidden');
+            resultEl.className = 'discovery-result success';
+            resultEl.innerHTML = messages.map(m => '<div>' + this.escapeHtml(m) + '</div>').join('');
+
+            // Unlock behavior step if behaviors imported and log data exists
+            if (data.behaviors && data.behaviors.length > 0) {
+                this.unlockStep('merge-step-behaviors');
+                if (this.logData && this.logData.rows.length > 0) {
+                    this.unlockStep('merge-step-review');
+                }
+            }
+            this.updateSummary();
+        } catch (error) {
+            resultEl.classList.remove('hidden');
+            resultEl.className = 'discovery-result error';
+            resultEl.textContent = 'Failed to parse JSON: ' + error.message;
         }
     },
 
@@ -3755,7 +3923,7 @@ const MergeApp = {
                 if (!rewardName) continue;
 
                 const key = rewardName.toLowerCase().trim();
-                const mappedId = this.manualRewardMaps[key];
+                const mappedId = this.manualRewardMaps[key] || this.discoveredRewards[key];
 
                 if (mappedId) {
                     incentiveIds.push(mappedId);
