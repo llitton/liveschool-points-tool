@@ -3461,9 +3461,9 @@ const MergeApp = {
             "var rwa=Array.isArray(rew)?rew:Object.values(rew);" +
             "out.rewards=rwa.filter(r=>r.id&&!r.archived).map(r=>({id:r.id,name:(r.name||'').trim(),value:r.value}))" +
             "}" +
-            // Users (for User ID)
+            // Users (for User ID — auth.user_id is the user, auth.id is the school)
             "var auth=st.auth;" +
-            "if(auth&&auth.id)out.userId=auth.id;" +
+            "if(auth&&auth.user_id)out.userId=auth.user_id;" +
             "console.log(JSON.stringify(out));" +
             "console.log('=== Copy the line above and paste into the Points Tool ===')" +
             "})()";
@@ -3552,12 +3552,10 @@ const MergeApp = {
             resultEl.className = 'discovery-result success';
             resultEl.innerHTML = messages.map(m => '<div>' + this.escapeHtml(m) + '</div>').join('');
 
-            // Unlock behavior step if behaviors imported and log data exists
+            // Unlock downstream steps
             if (data.behaviors && data.behaviors.length > 0) {
                 this.unlockStep('merge-step-behaviors');
-                if (this.logData && this.logData.rows.length > 0) {
-                    this.unlockStep('merge-step-review');
-                }
+                this.unlockStep('merge-step-review');
             }
             this.updateSummary();
         } catch (error) {
