@@ -71,7 +71,7 @@ Use this mode when a school has duplicate student records (e.g., one manually cr
 2. (Optional) Upload the LiveSchool CSV export to find duplicate students — click "Use These IDs" to auto-fill
 3. Enter the Original Student ID (source) and New Student ID (target)
 4. Enter the Roster ID, Location ID, School ID, and optionally User ID (required for purchases)
-5. Upload the extended data export (TSV) for the original student's transaction history
+5. Upload one or more Points Log exports (TSV) — rows are automatically filtered to the original student
 6. Paste the behavior JSON (from `GET /v2/schools/{schoolId}/behaviors`) to map behavior names to IDs
 7. Click "Parse Transactions" to review mapped/unmapped behaviors, purchases, and transaction groups
 8. Resolve any unmapped behaviors (dropdown) or rewards (enter incentive IDs)
@@ -613,7 +613,7 @@ The Merge Students mode replays behavior transactions from a duplicate student r
 
 1. **Find Duplicates** (optional): Upload the LiveSchool CSV export of all students at the site. The tool groups students by first + last name and shows any with 2+ matching records. Click "Use These IDs" to auto-fill the student ID fields.
 2. **Enter IDs**: Enter the Original Student ID (source of transactions) and the New Student ID (target to replay onto), plus the Roster ID, Location ID, School ID, and optionally User ID (for purchases)
-3. **Upload Points Log**: Upload the extended data export (TSV) from LiveSchool containing the original student's transaction history
+3. **Upload Points Log**: Upload one or more Points Log exports (TSV) from LiveSchool. Rows are automatically filtered to the original student by `Student LiveSchool ID` — upload site-wide monthly exports without pre-filtering
 4. **Import Behavior Map**: Paste the JSON output from `GET /v2/schools/{schoolId}/behaviors` so behavior names can be mapped to numeric IDs
 5. **Review Transactions**: Click "Parse Transactions" to see mapped/unmapped behaviors, purchases, API call count
 6. **Resolve Unmapped**: If any behavior names don't match, select the correct behavior from the dropdown. For unmapped rewards, enter the incentive ID.
@@ -654,6 +654,7 @@ Behavior names from the export are matched to IDs from the behavior JSON using c
 - **Teacher attribution**: All replayed behavior transactions include `[Originally by {Teacher}]` in the comment field, preserving the original teacher's name. The logged-in user is still the API caller, but the comment shows who originally gave the point.
 - **The conducts API accepts backdated dates**: The `date` field can be set to historical dates for behavior transactions
 - **Multiple behaviors per Record ID**: When a teacher gave multiple behaviors at once (same Record ID), they are combined into a single API call with multiple entries in the `behaviors` object
+- **Multi-file upload**: Step 3 accepts multiple Points Log exports (e.g., monthly site-wide TSV files). Rows are automatically filtered to the original student by `Student LiveSchool ID` column — no need to pre-filter exports before uploading
 
 ## Onboarding & Help
 
