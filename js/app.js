@@ -3412,7 +3412,7 @@ const MergeApp = {
             textareaEl.placeholder = 'Paste the JSON response from /v2/schools/' + idDisplay + '/behaviors here...';
         }
         if (incentiveScriptEl) {
-            incentiveScriptEl.textContent = "(async()=>{const sid='" + idDisplay + "';const urls=['https://api.liveschoolapp.com/v2/schools/'+sid+'/incentives','https://api.liveschoolapp.com/v2/incentives?school='+sid,'https://api-v3.liveschoolapp.com/incentives?school='+sid,'https://api-v3.liveschoolapp.com/schools/'+sid+'/incentives'];for(const url of urls){try{const r=await fetch(url,{credentials:'include'});if(!r.ok){console.log('  '+r.status+': '+url);continue}const d=await r.json();console.log('Found at: '+url);var items=d.items||d.data||d;if(typeof items==='object'&&!Array.isArray(items))items=Object.values(items);if(Array.isArray(items))items.forEach(i=>console.log(i.id+': '+(i.name||i.title)+' ('+(i.point_cost||i.cost)+' pts)'));else console.log(JSON.stringify(d));return}catch(e){console.log('  Error: '+url)}}console.log('No incentive endpoint found. Navigate to the Rewards Store in LiveSchool, open Network tab, and look for a request that loads store items.')})()";
+            incentiveScriptEl.textContent = "(()=>{var r=window.store&&window.store.state&&window.store.state.site&&window.store.state.site.rewards;if(!r||!r.length){console.log('No rewards found. Make sure you are on the LiveSchool app page (liveschoolapp.com).');return}var active=r.filter(i=>!i.archived);console.log(active.length+' active rewards ('+r.length+' total):');active.forEach(i=>console.log(i.id+': '+i.name.trim()+' ('+i.value+' pts)'))})()";
         }
     },
 
