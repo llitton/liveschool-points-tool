@@ -3402,6 +3402,7 @@ const MergeApp = {
     updateBehaviorFetchScript: function(schoolId) {
         const scriptEl = document.getElementById('merge-behavior-fetch-script');
         const textareaEl = document.getElementById('merge-behavior-json');
+        const incentiveScriptEl = document.getElementById('merge-incentive-fetch-script');
         const idDisplay = schoolId || '{schoolId}';
 
         if (scriptEl) {
@@ -3409,6 +3410,9 @@ const MergeApp = {
         }
         if (textareaEl && !textareaEl.value) {
             textareaEl.placeholder = 'Paste the JSON response from /v2/schools/' + idDisplay + '/behaviors here...';
+        }
+        if (incentiveScriptEl) {
+            incentiveScriptEl.textContent = "fetch('https://api.liveschoolapp.com/v2/schools/" + idDisplay + "/incentives', {credentials:'include'}).then(r=>r.json()).then(d=>{var items=d.items||d;if(typeof items==='object'&&!Array.isArray(items)){items=Object.values(items)}if(Array.isArray(items)){items.forEach(i=>console.log(i.id+': '+i.name+' ('+i.point_cost+' pts)'))}else{console.log(JSON.stringify(d))}})";
         }
     },
 

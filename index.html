@@ -1115,7 +1115,8 @@
 
                 <div id="merge-unmapped-rewards" class="hidden">
                     <h3>Unmapped Rewards</h3>
-                    <p class="hint">Enter the incentive ID for each reward. Find IDs in LiveSchool's network tab when purchasing an item (look for the <code>incentives</code> field in POST /v2/rewards).</p>
+                    <p class="hint">Enter the incentive ID for each reward. To discover incentive IDs, run this in the browser console while logged into LiveSchool:</p>
+                    <p class="hint"><code id="merge-incentive-fetch-script">fetch('https://api.liveschoolapp.com/v2/schools/{schoolId}/incentives', {credentials:'include'}).then(r=>r.json()).then(d=>{var items=d.items||d;if(typeof items==='object'&&!Array.isArray(items)){items=Object.values(items)}if(Array.isArray(items)){items.forEach(i=>console.log(i.id+': '+i.name+' ('+i.point_cost+' pts)'))}else{console.log(JSON.stringify(d))}})</code></p>
                     <div id="merge-unmapped-reward-items"></div>
                 </div>
 
