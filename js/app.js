@@ -182,6 +182,62 @@ const Auth = {
 };
 
 /**
+ * Shared Utilities
+ * Used across App, DemoApp, BalanceApp, and MergeApp modules.
+ */
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function copyToClipboard(button, text, originalLabel) {
+    originalLabel = originalLabel || button.textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        button.textContent = 'Copied!';
+        button.classList.add('copied');
+        setTimeout(() => {
+            button.textContent = originalLabel;
+            button.classList.remove('copied');
+        }, 2000);
+    });
+}
+
+function initAllinOneScript(codeElementId) {
+    const codeEl = document.getElementById(codeElementId);
+    if (codeEl) {
+        codeEl.textContent = getAllinOneDiscoveryScript();
+    }
+}
+
+function setupDropzone(dropzone, inputId, onDrop) {
+    const input = document.getElementById(inputId);
+
+    dropzone.addEventListener('click', () => input.click());
+
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file) onDrop(file);
+    });
+
+    input.addEventListener('change', (e) => {
+        if (e.target.files[0]) onDrop(e.target.files[0]);
+    });
+}
+
+/**
  * Main Application Logic
  */
 
@@ -208,17 +264,13 @@ const App = {
         this.loadSavedConfig();
         this.setupDragAndDrop();
         this.updateProgressBar();
-        this.initAllinOneScript();
+        initAllinOneScript('assign-allinone-script-code');
     },
 
     /**
      * Bind event listeners
      */
     bindEvents: function() {
-        // File upload handlers
-        document.getElementById('school-file').addEventListener('change', (e) => this.handleSchoolFile(e));
-        document.getElementById('liveschool-file').addEventListener('change', (e) => this.handleLiveSchoolFile(e));
-
         // Column mode toggle
         document.querySelectorAll('input[name="column-mode"]').forEach(radio => {
             radio.addEventListener('change', (e) => this.handleColumnModeChange(e.target.value));
@@ -241,14 +293,7 @@ const App = {
             copyAllinoneBtn.addEventListener('click', () => {
                 const code = document.getElementById('assign-allinone-script-code');
                 if (code && code.textContent) {
-                    navigator.clipboard.writeText(code.textContent).then(() => {
-                        copyAllinoneBtn.textContent = 'Copied!';
-                        copyAllinoneBtn.classList.add('copied');
-                        setTimeout(() => {
-                            copyAllinoneBtn.textContent = 'Copy Script';
-                            copyAllinoneBtn.classList.remove('copied');
-                        }, 2000);
-                    });
+                    copyToClipboard(copyAllinoneBtn, code.textContent, 'Copy Script');
                 }
             });
         }
@@ -276,43 +321,12 @@ const App = {
         const schoolDropzone = document.getElementById('school-dropzone');
         const liveschoolDropzone = document.getElementById('liveschool-dropzone');
 
-        // School file dropzone
-        this.setupDropzone(schoolDropzone, 'school-file', (file) => {
+        setupDropzone(schoolDropzone, 'school-file', (file) => {
             this.handleSchoolFile({ target: { files: [file] } });
         });
 
-        // LiveSchool file dropzone
-        this.setupDropzone(liveschoolDropzone, 'liveschool-file', (file) => {
+        setupDropzone(liveschoolDropzone, 'liveschool-file', (file) => {
             this.handleLiveSchoolFile({ target: { files: [file] } });
-        });
-    },
-
-    /**
-     * Setup a dropzone element
-     */
-    setupDropzone: function(dropzone, inputId, onDrop) {
-        const input = document.getElementById(inputId);
-
-        // Click to open file dialog
-        dropzone.addEventListener('click', () => input.click());
-
-        // Drag events
-        dropzone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropzone.classList.add('dragover');
-        });
-
-        dropzone.addEventListener('dragleave', () => {
-            dropzone.classList.remove('dragover');
-        });
-
-        dropzone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropzone.classList.remove('dragover');
-            const file = e.dataTransfer.files[0];
-            if (file) {
-                onDrop(file);
-            }
         });
     },
 
@@ -954,19 +968,12 @@ const App = {
                         <button class="download-btn" data-script="${sheetName}">Download</button>
                     </div>
                 </h4>
-                <pre><code class="language-javascript">${this.escapeHtml(script)}</code></pre>
+                <pre><code class="language-javascript">${escapeHtml(script)}</code></pre>
             `;
 
             // Bind copy button
             block.querySelector('.copy-btn').addEventListener('click', (e) => {
-                navigator.clipboard.writeText(script).then(() => {
-                    e.target.textContent = 'Copied!';
-                    e.target.classList.add('copied');
-                    setTimeout(() => {
-                        e.target.textContent = 'Copy';
-                        e.target.classList.remove('copied');
-                    }, 2000);
-                });
+                copyToClipboard(e.target, script, 'Copy');
             });
 
             // Bind download button
@@ -1178,13 +1185,6 @@ const entries = [
     /**
      * Save config to localStorage
      */
-    initAllinOneScript: function() {
-        const codeEl = document.getElementById('assign-allinone-script-code');
-        if (codeEl) {
-            codeEl.textContent = getAllinOneDiscoveryScript();
-        }
-    },
-
     importAllinoneDiscovery: function() {
         const textarea = document.getElementById('assign-allinone-output');
         const resultEl = document.getElementById('assign-allinone-result');
@@ -1233,7 +1233,7 @@ const entries = [
             // Show results
             resultEl.classList.remove('hidden');
             resultEl.className = 'discovery-result success';
-            resultEl.innerHTML = messages.map(m => '<div>' + this.escapeHtml(m) + '</div>').join('');
+            resultEl.innerHTML = messages.map(m => '<div>' + escapeHtml(m) + '</div>').join('');
 
             textarea.value = '';
         } catch (error) {
@@ -1297,14 +1297,6 @@ const entries = [
         }
     },
 
-    /**
-     * Escape HTML for safe display
-     */
-    escapeHtml: function(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
 };
 
 /**
@@ -1325,7 +1317,7 @@ const DemoApp = {
         this.loadSavedDemoConfig();
         this.setDefaultDates();
         this.generateDiscoveryScript();
-        this.initAllinOneScript();
+        initAllinOneScript('demo-allinone-script-code');
     },
 
     /**
@@ -1378,30 +1370,8 @@ const DemoApp = {
     bindDemoEvents: function() {
         // File upload
         const dropzone = document.getElementById('demo-liveschool-dropzone');
-        const fileInput = document.getElementById('demo-liveschool-file');
-
-        if (dropzone && fileInput) {
-            dropzone.addEventListener('click', () => fileInput.click());
-
-            dropzone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                dropzone.classList.add('dragover');
-            });
-
-            dropzone.addEventListener('dragleave', () => {
-                dropzone.classList.remove('dragover');
-            });
-
-            dropzone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                dropzone.classList.remove('dragover');
-                const file = e.dataTransfer.files[0];
-                if (file) this.handleFileUpload(file);
-            });
-
-            fileInput.addEventListener('change', (e) => {
-                if (e.target.files[0]) this.handleFileUpload(e.target.files[0]);
-            });
+        if (dropzone) {
+            setupDropzone(dropzone, 'demo-liveschool-file', (file) => this.handleFileUpload(file));
         }
 
         // Config field changes
@@ -1431,32 +1401,17 @@ const DemoApp = {
         const copyDiscoveryBtn = document.getElementById('copy-discovery-script');
         if (copyDiscoveryBtn) {
             copyDiscoveryBtn.addEventListener('click', () => {
-                const script = this.getDiscoveryScriptText();
-                navigator.clipboard.writeText(script).then(() => {
-                    copyDiscoveryBtn.textContent = 'Copied!';
-                    copyDiscoveryBtn.classList.add('copied');
-                    setTimeout(() => {
-                        copyDiscoveryBtn.textContent = 'Copy Script';
-                        copyDiscoveryBtn.classList.remove('copied');
-                    }, 2000);
-                });
+                copyToClipboard(copyDiscoveryBtn, this.getDiscoveryScriptText(), 'Copy Script');
             });
         }
 
         // All-in-one discovery: copy script
-        const copyAllinoneBtn = document.getElementById('demo-copy-allinone-script');
-        if (copyAllinoneBtn) {
-            copyAllinoneBtn.addEventListener('click', () => {
+        const demoAllinoneBtn = document.getElementById('demo-copy-allinone-script');
+        if (demoAllinoneBtn) {
+            demoAllinoneBtn.addEventListener('click', () => {
                 const code = document.getElementById('demo-allinone-script-code');
                 if (code && code.textContent) {
-                    navigator.clipboard.writeText(code.textContent).then(() => {
-                        copyAllinoneBtn.textContent = 'Copied!';
-                        copyAllinoneBtn.classList.add('copied');
-                        setTimeout(() => {
-                            copyAllinoneBtn.textContent = 'Copy Script';
-                            copyAllinoneBtn.classList.remove('copied');
-                        }, 2000);
-                    });
+                    copyToClipboard(demoAllinoneBtn, code.textContent, 'Copy Script');
                 }
             });
         }
@@ -1720,8 +1675,8 @@ const DemoApp = {
         container.innerHTML = this.behaviors.map(b => `
             <div class="behavior-item">
                 <div class="behavior-item-info">
-                    <span class="behavior-item-id">${this.escapeHtml(b.id)}</span>
-                    <span class="behavior-item-name">${this.escapeHtml(b.name)}</span>
+                    <span class="behavior-item-id">${escapeHtml(b.id)}</span>
+                    <span class="behavior-item-name">${escapeHtml(b.name)}</span>
                     <span class="behavior-item-type ${b.type}">${b.type}</span>
                 </div>
                 <button class="behavior-item-remove" data-id="${b.id}" title="Remove">&times;</button>
@@ -1976,20 +1931,13 @@ const DemoApp = {
                         <button class="download-btn" id="download-demo-script">Download</button>
                     </div>
                 </h4>
-                <pre><code class="language-javascript">${this.escapeHtml(script)}</code></pre>
+                <pre><code class="language-javascript">${escapeHtml(script)}</code></pre>
             </div>
         `;
 
         // Bind buttons
         document.getElementById('copy-demo-script').addEventListener('click', (e) => {
-            navigator.clipboard.writeText(script).then(() => {
-                e.target.textContent = 'Copied!';
-                e.target.classList.add('copied');
-                setTimeout(() => {
-                    e.target.textContent = 'Copy';
-                    e.target.classList.remove('copied');
-                }, 2000);
-            });
+            copyToClipboard(e.target, script, 'Copy');
         });
 
         document.getElementById('download-demo-script').addEventListener('click', () => {
@@ -2311,13 +2259,6 @@ async function sendBatch(group, batchStudents, batchNum, totalBatches, attempt =
     /**
      * Save demo config to localStorage
      */
-    initAllinOneScript: function() {
-        const codeEl = document.getElementById('demo-allinone-script-code');
-        if (codeEl) {
-            codeEl.textContent = getAllinOneDiscoveryScript();
-        }
-    },
-
     importAllinoneDiscovery: function() {
         const textarea = document.getElementById('demo-allinone-output');
         const resultEl = document.getElementById('demo-allinone-result');
@@ -2374,7 +2315,7 @@ async function sendBatch(group, batchStudents, batchNum, totalBatches, attempt =
             // Show results
             resultEl.classList.remove('hidden');
             resultEl.className = 'discovery-result success';
-            resultEl.innerHTML = messages.map(m => '<div>' + this.escapeHtml(m) + '</div>').join('');
+            resultEl.innerHTML = messages.map(m => '<div>' + escapeHtml(m) + '</div>').join('');
 
             textarea.value = '';
         } catch (error) {
@@ -2410,14 +2351,6 @@ async function sendBatch(group, batchStudents, batchNum, totalBatches, attempt =
         }
     },
 
-    /**
-     * Escape HTML for safe display
-     */
-    escapeHtml: function(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
 };
 
 /**
@@ -2446,58 +2379,14 @@ const BalanceApp = {
     bindEvents: function() {
         // Source file upload
         const sourceDropzone = document.getElementById('balance-source-dropzone');
-        const sourceInput = document.getElementById('balance-source-file');
-
-        if (sourceDropzone && sourceInput) {
-            sourceDropzone.addEventListener('click', () => sourceInput.click());
-
-            sourceDropzone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                sourceDropzone.classList.add('dragover');
-            });
-
-            sourceDropzone.addEventListener('dragleave', () => {
-                sourceDropzone.classList.remove('dragover');
-            });
-
-            sourceDropzone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                sourceDropzone.classList.remove('dragover');
-                const file = e.dataTransfer.files[0];
-                if (file) this.handleSourceFile(file);
-            });
-
-            sourceInput.addEventListener('change', (e) => {
-                if (e.target.files[0]) this.handleSourceFile(e.target.files[0]);
-            });
+        if (sourceDropzone) {
+            setupDropzone(sourceDropzone, 'balance-source-file', (file) => this.handleSourceFile(file));
         }
 
         // LiveSchool file upload
         const lsDropzone = document.getElementById('balance-liveschool-dropzone');
-        const lsInput = document.getElementById('balance-liveschool-file');
-
-        if (lsDropzone && lsInput) {
-            lsDropzone.addEventListener('click', () => lsInput.click());
-
-            lsDropzone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                lsDropzone.classList.add('dragover');
-            });
-
-            lsDropzone.addEventListener('dragleave', () => {
-                lsDropzone.classList.remove('dragover');
-            });
-
-            lsDropzone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                lsDropzone.classList.remove('dragover');
-                const file = e.dataTransfer.files[0];
-                if (file) this.handleLiveSchoolFile(file);
-            });
-
-            lsInput.addEventListener('change', (e) => {
-                if (e.target.files[0]) this.handleLiveSchoolFile(e.target.files[0]);
-            });
+        if (lsDropzone) {
+            setupDropzone(lsDropzone, 'balance-liveschool-file', (file) => this.handleLiveSchoolFile(file));
         }
 
         // Column confirmation
@@ -2600,8 +2489,8 @@ const BalanceApp = {
             div.className = 'column-option';
             div.dataset.index = idx;
             div.innerHTML = `
-                <strong>${this.escapeHtml(header)}</strong>
-                <span class="column-preview">${this.escapeHtml(sample.substring(0, 30))}${sample.length > 30 ? '...' : ''}</span>
+                <strong>${escapeHtml(header)}</strong>
+                <span class="column-preview">${escapeHtml(sample.substring(0, 30))}${sample.length > 30 ? '...' : ''}</span>
             `;
             div.addEventListener('click', () => this.selectColumn(idx, 'name'));
             nameContainer.appendChild(div);
@@ -2617,8 +2506,8 @@ const BalanceApp = {
             div.className = 'column-option';
             div.dataset.index = idx;
             div.innerHTML = `
-                <strong>${this.escapeHtml(header)}</strong>
-                <span class="column-preview">${this.escapeHtml(sample.substring(0, 30))}${sample.length > 30 ? '...' : ''}</span>
+                <strong>${escapeHtml(header)}</strong>
+                <span class="column-preview">${escapeHtml(sample.substring(0, 30))}${sample.length > 30 ? '...' : ''}</span>
             `;
             div.addEventListener('click', () => this.selectColumn(idx, 'points'));
             pointsContainer.appendChild(div);
@@ -2807,7 +2696,7 @@ const BalanceApp = {
             optionsHtml += '</optgroup>';
 
             div.innerHTML = `
-                <div class="original-name">${this.escapeHtml(unmatched.originalName)}</div>
+                <div class="original-name">${escapeHtml(unmatched.originalName)}</div>
                 <div class="points-badge">${points} pts</div>
                 <select class="manual-match-select">${optionsHtml}</select>
             `;
@@ -2915,20 +2804,13 @@ const BalanceApp = {
                         <button class="download-btn" id="download-balance-script">Download</button>
                     </div>
                 </h4>
-                <pre><code class="language-javascript">${this.escapeHtml(script)}</code></pre>
+                <pre><code class="language-javascript">${escapeHtml(script)}</code></pre>
             </div>
         `;
 
         // Bind buttons
         document.getElementById('copy-balance-script').addEventListener('click', (e) => {
-            navigator.clipboard.writeText(script).then(() => {
-                e.target.textContent = 'Copied!';
-                e.target.classList.add('copied');
-                setTimeout(() => {
-                    e.target.textContent = 'Copy';
-                    e.target.classList.remove('copied');
-                }, 2000);
-            });
+            copyToClipboard(e.target, script, 'Copy');
         });
 
         document.getElementById('download-balance-script').addEventListener('click', () => {
@@ -3122,14 +3004,6 @@ const REWARD_ID = "\${REWARD_ID}";
         }
     },
 
-    /**
-     * Escape HTML for safe display
-     */
-    escapeHtml: function(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
 };
 
 /**
@@ -3225,34 +3099,8 @@ const MergeApp = {
 
         // CSV file upload (Step 1 - Find Duplicates)
         const csvDropzone = document.getElementById('merge-csv-dropzone');
-        const csvFileInput = document.getElementById('merge-csv-file');
-
-        if (csvDropzone && csvFileInput) {
-            csvDropzone.addEventListener('click', (e) => {
-                if (e.target.closest('.select-file-btn') || e.target === csvDropzone || e.target.closest('.dropzone-content')) {
-                    csvFileInput.click();
-                }
-            });
-
-            csvDropzone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                csvDropzone.classList.add('dragover');
-            });
-
-            csvDropzone.addEventListener('dragleave', () => {
-                csvDropzone.classList.remove('dragover');
-            });
-
-            csvDropzone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                csvDropzone.classList.remove('dragover');
-                const file = e.dataTransfer.files[0];
-                if (file) this.handleCsvFile(file);
-            });
-
-            csvFileInput.addEventListener('change', (e) => {
-                if (e.target.files[0]) this.handleCsvFile(e.target.files[0]);
-            });
+        if (csvDropzone) {
+            setupDropzone(csvDropzone, 'merge-csv-file', (file) => this.handleCsvFile(file));
         }
 
         // TSV file upload (Step 3 - Upload Points Log)
@@ -3322,19 +3170,12 @@ const MergeApp = {
         }
 
         // All-in-one discovery: copy script
-        const copyAllinoneBtn = document.getElementById('merge-copy-allinone-script');
-        if (copyAllinoneBtn) {
-            copyAllinoneBtn.addEventListener('click', () => {
+        const mergeAllinoneBtn = document.getElementById('merge-copy-allinone-script');
+        if (mergeAllinoneBtn) {
+            mergeAllinoneBtn.addEventListener('click', () => {
                 const code = document.getElementById('merge-allinone-script-code');
                 if (code && code.textContent) {
-                    navigator.clipboard.writeText(code.textContent).then(() => {
-                        copyAllinoneBtn.textContent = 'Copied!';
-                        copyAllinoneBtn.classList.add('copied');
-                        setTimeout(() => {
-                            copyAllinoneBtn.textContent = 'Copy Script';
-                            copyAllinoneBtn.classList.remove('copied');
-                        }, 2000);
-                    });
+                    copyToClipboard(mergeAllinoneBtn, code.textContent, 'Copy Script');
                 }
             });
         }
@@ -3346,7 +3187,7 @@ const MergeApp = {
         }
 
         // Generate the all-in-one script on load
-        this.updateAllinOneScript();
+        initAllinOneScript('merge-allinone-script-code');
 
         // Extract school + roster from pasted fetch
         const extractIdsBtn = document.getElementById('merge-extract-ids');
@@ -3360,14 +3201,7 @@ const MergeApp = {
             copyLocationBtn.addEventListener('click', () => {
                 const code = document.getElementById('merge-location-script-code');
                 if (code && code.textContent) {
-                    navigator.clipboard.writeText(code.textContent).then(() => {
-                        copyLocationBtn.textContent = 'Copied!';
-                        copyLocationBtn.classList.add('copied');
-                        setTimeout(() => {
-                            copyLocationBtn.textContent = 'Copy Script';
-                            copyLocationBtn.classList.remove('copied');
-                        }, 2000);
-                    });
+                    copyToClipboard(copyLocationBtn, code.textContent, 'Copy Script');
                 }
             });
         }
@@ -3455,9 +3289,9 @@ const MergeApp = {
             (this.duplicateGroups.length === 1 ? '' : 's') + ' among ' + this.siteStudents.length + ' students.';
 
         listEl.innerHTML = this.duplicateGroups.map((group, gIdx) => {
-            const displayName = this.escapeHtml(group.firstName + ' ' + group.lastName);
+            const displayName = escapeHtml(group.firstName + ' ' + group.lastName);
             const idsHtml = group.students.map(s =>
-                '<span class="duplicate-id">' + this.escapeHtml(s.id) + '</span>'
+                '<span class="duplicate-id">' + escapeHtml(s.id) + '</span>'
             ).join('');
 
             // For pairs (most common), show a single "Use These IDs" button
@@ -3468,7 +3302,7 @@ const MergeApp = {
             } else {
                 // Multiple students — let user pick which two
                 const options = group.students.map((s, i) =>
-                    '<option value="' + i + '">ID: ' + this.escapeHtml(s.id) + '</option>'
+                    '<option value="' + i + '">ID: ' + escapeHtml(s.id) + '</option>'
                 ).join('');
                 actionHtml = '<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">' +
                     '<label style="font-size:0.85rem;color:#718096;">Source:</label>' +
@@ -3685,11 +3519,6 @@ const MergeApp = {
         }
     },
 
-    updateAllinOneScript: function() {
-        const codeEl = document.getElementById('merge-allinone-script-code');
-        if (!codeEl) return;
-        codeEl.textContent = getAllinOneDiscoveryScript();
-    },
 
     importAllinoneDiscovery: function() {
         const textarea = document.getElementById('merge-allinone-output');
@@ -3752,7 +3581,7 @@ const MergeApp = {
                 if (countEl) countEl.textContent = this.behaviorMap.length;
                 if (itemsEl) {
                     itemsEl.innerHTML = this.behaviorMap.map(b =>
-                        '<div class="merge-behavior-chip"><span>' + this.escapeHtml(b.name) +
+                        '<div class="merge-behavior-chip"><span>' + escapeHtml(b.name) +
                         '</span><span class="behavior-type-badge ' + b.type + '">' + b.type + '</span></div>'
                     ).join('');
                 }
@@ -3772,7 +3601,7 @@ const MergeApp = {
             // Show results
             resultEl.classList.remove('hidden');
             resultEl.className = 'discovery-result success';
-            resultEl.innerHTML = messages.map(m => '<div>' + this.escapeHtml(m) + '</div>').join('');
+            resultEl.innerHTML = messages.map(m => '<div>' + escapeHtml(m) + '</div>').join('');
 
             // Unlock downstream steps
             if (data.behaviors && data.behaviors.length > 0) {
@@ -3920,7 +3749,7 @@ const MergeApp = {
             listContainer.classList.remove('hidden');
 
             itemsEl.innerHTML = this.logFiles.map(f =>
-                '<li>' + this.escapeHtml(f.name) +
+                '<li>' + escapeHtml(f.name) +
                 ' <span class="file-row-count">' + f.matchedRows + ' / ' + f.totalRows + ' rows matched</span></li>'
             ).join('');
 
@@ -3928,13 +3757,13 @@ const MergeApp = {
                 if (filter.method === 'name') {
                     summaryEl.className = 'filter-summary success';
                     summaryEl.innerHTML = filtered.length + ' rows matched by name <strong>"' +
-                        this.escapeHtml(this.studentName) + '"</strong>' +
+                        escapeHtml(this.studentName) + '"</strong>' +
                         ' (' + behaviorRows.length + ' behaviors, ' + rewardRows.length + ' rewards)' +
                         ' out of ' + totalRows + ' total rows across ' + this.logFiles.length + ' file' +
                         (this.logFiles.length > 1 ? 's' : '') +
                         '.<br><span class="filter-note">⚠ Student LiveSchool ID in export is <strong>' +
-                        this.escapeHtml(filter.foundId) + '</strong>, not ' +
-                        this.escapeHtml(this.originalStudentId) +
+                        escapeHtml(filter.foundId) + '</strong>, not ' +
+                        escapeHtml(this.originalStudentId) +
                         '. This is likely an older record for the same student.</span>';
                 } else {
                     summaryEl.className = 'filter-summary success';
@@ -4011,7 +3840,7 @@ const MergeApp = {
             countEl.textContent = this.behaviorMap.length;
             itemsEl.innerHTML = this.behaviorMap.map(b => `
                 <div class="merge-behavior-chip">
-                    <span>${this.escapeHtml(b.name)}</span>
+                    <span>${escapeHtml(b.name)}</span>
                     <span class="behavior-type-badge ${b.type}">${b.type}</span>
                 </div>
             `).join('');
@@ -4210,12 +4039,12 @@ const MergeApp = {
         // Build dropdown options from all known behaviors
         const optionsHtml = this.behaviorMap
             .sort((a, b) => a.name.localeCompare(b.name))
-            .map(b => `<option value="${b.id}" data-type="${b.type}">${this.escapeHtml(b.name)} (${b.id})</option>`)
+            .map(b => `<option value="${b.id}" data-type="${b.type}">${escapeHtml(b.name)} (${b.id})</option>`)
             .join('');
 
         itemsEl.innerHTML = this.unmappedBehaviors.map((name, idx) => `
             <div class="unmapped-behavior-item" id="unmapped-merge-${idx}">
-                <span class="behavior-name">${this.escapeHtml(name)}</span>
+                <span class="behavior-name">${escapeHtml(name)}</span>
                 <select id="unmapped-merge-select-${idx}">
                     <option value="">-- Select behavior --</option>
                     ${optionsHtml}
@@ -4268,7 +4097,7 @@ const MergeApp = {
 
         itemsEl.innerHTML = this.unmappedRewards.map((name, idx) => `
             <div class="unmapped-behavior-item" id="unmapped-reward-${idx}">
-                <span class="behavior-name">${this.escapeHtml(name)}</span>
+                <span class="behavior-name">${escapeHtml(name)}</span>
                 <input type="text" id="unmapped-reward-input-${idx}" placeholder="Incentive ID (e.g., 198877)" style="width: 200px;">
                 <button class="btn secondary" onclick="MergeApp.resolveUnmappedReward(${idx})">Confirm</button>
             </div>
@@ -4320,10 +4149,10 @@ const MergeApp = {
             const typeLabel = g.type === 'reward' ? '<span class="group-type-badge reward">Purchase</span>' : '';
             return `
             <div class="merge-group-item ${g.type === 'reward' ? 'reward-group' : ''}">
-                <span class="group-date">${this.escapeHtml(g.date)} ${this.escapeHtml(g.time)}</span>
+                <span class="group-date">${escapeHtml(g.date)} ${escapeHtml(g.time)}</span>
                 ${typeLabel}
-                <span class="group-behaviors">${this.escapeHtml(names)}</span>
-                ${g.comment ? `<span class="group-comment" title="${this.escapeHtml(g.comment)}">${this.escapeHtml(g.comment)}</span>` : ''}
+                <span class="group-behaviors">${escapeHtml(names)}</span>
+                ${g.comment ? `<span class="group-comment" title="${escapeHtml(g.comment)}">${escapeHtml(g.comment)}</span>` : ''}
             </div>`;
         }).join('');
     },
@@ -4400,26 +4229,19 @@ const MergeApp = {
         container.innerHTML = `
             <div class="script-block">
                 <h4>
-                    <span>Merge Script (${totalCalls} API calls, student ${this.escapeHtml(originalId)} → ${this.escapeHtml(newId)})</span>
+                    <span>Merge Script (${totalCalls} API calls, student ${escapeHtml(originalId)} → ${escapeHtml(newId)})</span>
                     <div class="script-actions">
                         <button class="copy-btn" id="copy-merge-script">Copy</button>
                         <button class="download-btn" id="download-merge-script">Download</button>
                     </div>
                 </h4>
-                <pre><code class="language-javascript">${this.escapeHtml(script)}</code></pre>
+                <pre><code class="language-javascript">${escapeHtml(script)}</code></pre>
             </div>
         `;
 
         // Bind copy button
         document.getElementById('copy-merge-script').addEventListener('click', (e) => {
-            navigator.clipboard.writeText(script).then(() => {
-                e.target.textContent = 'Copied!';
-                e.target.classList.add('copied');
-                setTimeout(() => {
-                    e.target.textContent = 'Copy';
-                    e.target.classList.remove('copied');
-                }, 2000);
-            });
+            copyToClipboard(e.target, script, 'Copy');
         });
 
         // Bind download button
@@ -4736,12 +4558,6 @@ ${hasRewards ? `
             mappedSummary.querySelector('.summary-icon').classList.add('complete');
             mappedSummary.querySelector('.summary-label').textContent = `${totalGroups} groups`;
         }
-    },
-
-    escapeHtml: function(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
     }
 };
 
