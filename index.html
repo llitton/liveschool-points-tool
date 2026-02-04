@@ -96,6 +96,13 @@
             </div>
             <div class="modal-body changelog-body">
                 <div class="changelog-entry">
+                    <div class="changelog-version">v2.9.0 <span class="changelog-date">February 2026</span></div>
+                    <ul>
+                        <li><strong>Improved: All Modes</strong> - All-in-one discovery script now available in Assign Points and Demo Data Generator modes</li>
+                        <li>One script discovers School ID, Roster ID, Location ID, and all behaviors from the LiveSchool Vuex store</li>
+                        <li>Assign Points: discovered behaviors appear as suggestions in behavior ID fields (datalist)</li>
+                        <li>Demo Data Generator: discovered behaviors are automatically imported into the behavior list</li>
+                    </ul>
                     <div class="changelog-version">v2.8.0 <span class="changelog-date">February 2026</span></div>
                     <ul>
                         <li><strong>Improved: Merge Students</strong> - Name-based fallback for Points Log filtering</li>
@@ -471,7 +478,7 @@
                 <span class="lock-icon" title="Complete previous steps to unlock">🔒</span>
             </div>
             <div class="step-content">
-                <p class="step-description">Enter the IDs for this school (found in LiveSchool URLs or network requests)</p>
+                <p class="step-description">Enter the IDs for this school, or use the discovery script to auto-fill them.</p>
                 <div class="config-grid">
                     <div class="config-field">
                         <label for="roster-id">Roster ID</label>
@@ -484,6 +491,22 @@
                     <div class="config-field">
                         <label for="school-id">School ID</label>
                         <input type="text" id="school-id" placeholder="e.g., 99">
+                    </div>
+                </div>
+
+                <div class="config-discovery">
+                    <div class="discovery-part">
+                        <h4>Auto-Fill via Discovery Script</h4>
+                        <p class="hint">Copy this script, paste it in the browser console on the LiveSchool app page (liveschoolapp.com), then paste the JSON output below. This discovers all IDs and behaviors at once.</p>
+                        <div class="discovery-actions">
+                            <pre class="discovery-code"><code id="assign-allinone-script-code"></code></pre>
+                            <button id="assign-copy-allinone-script" class="copy-btn">Copy Script</button>
+                        </div>
+                        <div class="import-row">
+                            <textarea id="assign-allinone-output" placeholder="Paste the JSON output here..." rows="3"></textarea>
+                            <button id="assign-import-allinone" class="btn primary">Import All</button>
+                        </div>
+                        <div id="assign-allinone-result" class="hidden"></div>
                     </div>
                 </div>
             </div>
@@ -596,7 +619,7 @@
                 <span class="lock-icon" title="Complete previous steps to unlock">🔒</span>
             </div>
             <div class="step-content">
-                <p class="step-description">Enter the IDs for this demo site (found in LiveSchool URLs or network requests)</p>
+                <p class="step-description">Enter the IDs for this demo site, or use the discovery script to auto-fill them.</p>
                 <div class="config-grid">
                     <div class="config-field">
                         <label for="demo-roster-id">Roster ID</label>
@@ -609,6 +632,22 @@
                     <div class="config-field">
                         <label for="demo-school-id">School ID</label>
                         <input type="text" id="demo-school-id" placeholder="e.g., 99">
+                    </div>
+                </div>
+
+                <div class="config-discovery">
+                    <div class="discovery-part">
+                        <h4>Auto-Fill via Discovery Script</h4>
+                        <p class="hint">Copy this script, paste it in the browser console on the LiveSchool app page (liveschoolapp.com), then paste the JSON output below. This discovers all IDs and behaviors at once.</p>
+                        <div class="discovery-actions">
+                            <pre class="discovery-code"><code id="demo-allinone-script-code"></code></pre>
+                            <button id="demo-copy-allinone-script" class="copy-btn">Copy Script</button>
+                        </div>
+                        <div class="import-row">
+                            <textarea id="demo-allinone-output" placeholder="Paste the JSON output here..." rows="3"></textarea>
+                            <button id="demo-import-allinone" class="btn primary">Import All</button>
+                        </div>
+                        <div id="demo-allinone-result" class="hidden"></div>
                     </div>
                 </div>
             </div>

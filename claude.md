@@ -672,6 +672,14 @@ First-visit and version tracking uses localStorage keys:
 
 ## Changelog
 
+### v2.9.0 (February 2026)
+- **Improved: All Modes** - All-in-one discovery script added to Assign Points and Demo Data Generator modes
+- One script discovers School ID, Roster ID, Location ID, and all behaviors from the LiveSchool Vuex store
+- Shared `getAllinOneDiscoveryScript()` function used by all three modes (Merge, Demo, Assign)
+- Assign Points: discovered behaviors appear as datalist suggestions in behavior ID fields
+- Demo Data Generator: discovered behaviors are automatically imported into the behavior list
+- Config fields auto-fill from discovery output in all modes
+
 ### v2.8.0 (February 2026)
 - **Improved: Merge Students** - Name-based fallback for Points Log filtering
 - New "Student Name" field in Step 2 (auto-populated from duplicate finder, or enter manually)

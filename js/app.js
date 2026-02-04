@@ -198,6 +198,7 @@ const App = {
     matchResults: {},
     manualMatches: {},
     currentStep: 1,
+    discoveredBehaviors: [],
 
     /**
      * Initialize the application
@@ -207,6 +208,7 @@ const App = {
         this.loadSavedConfig();
         this.setupDragAndDrop();
         this.updateProgressBar();
+        this.initAllinOneScript();
     },
 
     /**
@@ -232,6 +234,30 @@ const App = {
                 this.updateSummary();
             });
         });
+
+        // All-in-one discovery: copy script
+        const copyAllinoneBtn = document.getElementById('assign-copy-allinone-script');
+        if (copyAllinoneBtn) {
+            copyAllinoneBtn.addEventListener('click', () => {
+                const code = document.getElementById('assign-allinone-script-code');
+                if (code && code.textContent) {
+                    navigator.clipboard.writeText(code.textContent).then(() => {
+                        copyAllinoneBtn.textContent = 'Copied!';
+                        copyAllinoneBtn.classList.add('copied');
+                        setTimeout(() => {
+                            copyAllinoneBtn.textContent = 'Copy Script';
+                            copyAllinoneBtn.classList.remove('copied');
+                        }, 2000);
+                    });
+                }
+            });
+        }
+
+        // All-in-one discovery: import
+        const importAllinoneBtn = document.getElementById('assign-import-allinone');
+        if (importAllinoneBtn) {
+            importAllinoneBtn.addEventListener('click', () => this.importAllinoneDiscovery());
+        }
 
         // Apply to All Tabs
         document.getElementById('apply-to-all').addEventListener('click', () => this.applyToAllTabs());
@@ -721,6 +747,9 @@ const App = {
             });
         });
 
+        // Attach behavior datalist if behaviors were discovered
+        this.updateBehaviorDatalist();
+
         this.unlockStep(5);
     },
 
@@ -1149,6 +1178,99 @@ const entries = [
     /**
      * Save config to localStorage
      */
+    initAllinOneScript: function() {
+        const codeEl = document.getElementById('assign-allinone-script-code');
+        if (codeEl) {
+            codeEl.textContent = getAllinOneDiscoveryScript();
+        }
+    },
+
+    importAllinoneDiscovery: function() {
+        const textarea = document.getElementById('assign-allinone-output');
+        const resultEl = document.getElementById('assign-allinone-result');
+        const text = (textarea && textarea.value || '').trim();
+
+        if (!text) {
+            alert('Please paste the JSON output from the discovery script.');
+            return;
+        }
+
+        try {
+            const data = JSON.parse(text);
+            const messages = [];
+
+            // School ID
+            if (data.schoolId) {
+                document.getElementById('school-id').value = data.schoolId;
+                messages.push('School ID: ' + data.schoolId);
+            }
+
+            // Roster ID (use first roster)
+            if (data.rosters && data.rosters.length > 0) {
+                const roster = data.rosters[0];
+                document.getElementById('roster-id').value = roster.id;
+                messages.push('Roster ID: ' + roster.id + (roster.name ? ' (' + roster.name + ')' : ''));
+            }
+
+            // Location ID (use first location)
+            if (data.locations && data.locations.length > 0) {
+                const loc = data.locations[0];
+                document.getElementById('location-id').value = loc.id;
+                messages.push('Location ID: ' + loc.id + (loc.name ? ' (' + loc.name + ')' : ''));
+            }
+
+            // Save config
+            this.saveConfig();
+            this.updateSummary();
+
+            // Store discovered behaviors for datalist
+            if (data.behaviors && data.behaviors.length > 0) {
+                this.discoveredBehaviors = data.behaviors;
+                this.updateBehaviorDatalist();
+                messages.push('Behaviors: ' + data.behaviors.length + ' available for selection');
+            }
+
+            // Show results
+            resultEl.classList.remove('hidden');
+            resultEl.className = 'discovery-result success';
+            resultEl.innerHTML = messages.map(m => '<div>' + this.escapeHtml(m) + '</div>').join('');
+
+            textarea.value = '';
+        } catch (error) {
+            resultEl.classList.remove('hidden');
+            resultEl.className = 'discovery-result error';
+            resultEl.textContent = 'Failed to parse JSON: ' + error.message;
+        }
+    },
+
+    updateBehaviorDatalist: function() {
+        // Remove existing datalist if present
+        let datalist = document.getElementById('behavior-datalist');
+        if (datalist) datalist.remove();
+
+        if (!this.discoveredBehaviors || this.discoveredBehaviors.length === 0) return;
+
+        // Create datalist element
+        datalist = document.createElement('datalist');
+        datalist.id = 'behavior-datalist';
+        this.discoveredBehaviors.forEach(b => {
+            const option = document.createElement('option');
+            option.value = b.id;
+            option.textContent = b.id + ': ' + b.name + ' (' + b.type + ')';
+            datalist.appendChild(option);
+        });
+        document.body.appendChild(datalist);
+
+        // Attach to all behavior ID inputs (current and future via bulk input)
+        document.querySelectorAll('.behavior-id').forEach(input => {
+            input.setAttribute('list', 'behavior-datalist');
+        });
+        const bulkInput = document.getElementById('bulk-behavior-id');
+        if (bulkInput) {
+            bulkInput.setAttribute('list', 'behavior-datalist');
+        }
+    },
+
     saveConfig: function() {
         const config = {
             rosterId: document.getElementById('roster-id').value,
@@ -1203,6 +1325,7 @@ const DemoApp = {
         this.loadSavedDemoConfig();
         this.setDefaultDates();
         this.generateDiscoveryScript();
+        this.initAllinOneScript();
     },
 
     /**
@@ -1318,6 +1441,30 @@ const DemoApp = {
                     }, 2000);
                 });
             });
+        }
+
+        // All-in-one discovery: copy script
+        const copyAllinoneBtn = document.getElementById('demo-copy-allinone-script');
+        if (copyAllinoneBtn) {
+            copyAllinoneBtn.addEventListener('click', () => {
+                const code = document.getElementById('demo-allinone-script-code');
+                if (code && code.textContent) {
+                    navigator.clipboard.writeText(code.textContent).then(() => {
+                        copyAllinoneBtn.textContent = 'Copied!';
+                        copyAllinoneBtn.classList.add('copied');
+                        setTimeout(() => {
+                            copyAllinoneBtn.textContent = 'Copy Script';
+                            copyAllinoneBtn.classList.remove('copied');
+                        }, 2000);
+                    });
+                }
+            });
+        }
+
+        // All-in-one discovery: import
+        const importAllinoneBtn = document.getElementById('demo-import-allinone');
+        if (importAllinoneBtn) {
+            importAllinoneBtn.addEventListener('click', () => this.importAllinoneDiscovery());
         }
 
         // Import behaviors
@@ -2164,6 +2311,79 @@ async function sendBatch(group, batchStudents, batchNum, totalBatches, attempt =
     /**
      * Save demo config to localStorage
      */
+    initAllinOneScript: function() {
+        const codeEl = document.getElementById('demo-allinone-script-code');
+        if (codeEl) {
+            codeEl.textContent = getAllinOneDiscoveryScript();
+        }
+    },
+
+    importAllinoneDiscovery: function() {
+        const textarea = document.getElementById('demo-allinone-output');
+        const resultEl = document.getElementById('demo-allinone-result');
+        const text = (textarea && textarea.value || '').trim();
+
+        if (!text) {
+            alert('Please paste the JSON output from the discovery script.');
+            return;
+        }
+
+        try {
+            const data = JSON.parse(text);
+            const messages = [];
+
+            // School ID
+            if (data.schoolId) {
+                document.getElementById('demo-school-id').value = data.schoolId;
+                messages.push('School ID: ' + data.schoolId);
+            }
+
+            // Roster ID (use first roster)
+            if (data.rosters && data.rosters.length > 0) {
+                const roster = data.rosters[0];
+                document.getElementById('demo-roster-id').value = roster.id;
+                messages.push('Roster ID: ' + roster.id + (roster.name ? ' (' + roster.name + ')' : ''));
+            }
+
+            // Location ID (use first location)
+            if (data.locations && data.locations.length > 0) {
+                const loc = data.locations[0];
+                document.getElementById('demo-location-id').value = loc.id;
+                messages.push('Location ID: ' + loc.id + (loc.name ? ' (' + loc.name + ')' : ''));
+            }
+
+            // Save config and trigger unlock checks
+            this.saveDemoConfig();
+            this.updateDemoSummary();
+            this.checkDemoStepsUnlock();
+
+            // Import behaviors
+            if (data.behaviors && data.behaviors.length > 0) {
+                let added = 0;
+                for (const b of data.behaviors) {
+                    if (!b.id || this.behaviors.find(existing => existing.id === b.id)) continue;
+                    this.behaviors.push({ id: b.id, name: b.name, type: b.type });
+                    added++;
+                }
+                this.renderBehaviorList();
+                this.updateDemoSummary();
+                this.checkDemoStepsUnlock();
+                messages.push('Behaviors: ' + added + ' imported');
+            }
+
+            // Show results
+            resultEl.classList.remove('hidden');
+            resultEl.className = 'discovery-result success';
+            resultEl.innerHTML = messages.map(m => '<div>' + this.escapeHtml(m) + '</div>').join('');
+
+            textarea.value = '';
+        } catch (error) {
+            resultEl.classList.remove('hidden');
+            resultEl.className = 'discovery-result error';
+            resultEl.textContent = 'Failed to parse JSON: ' + error.message;
+        }
+    },
+
     saveDemoConfig: function() {
         const config = {
             rosterId: document.getElementById('demo-roster-id').value,
@@ -2913,6 +3133,44 @@ const REWARD_ID = "\${REWARD_ID}";
 };
 
 /**
+ * Shared: All-in-One Discovery Script
+ * Reads schoolId, rosters, locations, behaviors, rewards, and userId from the LiveSchool Vuex store.
+ * Used by Merge, Demo, and Assign Points modes.
+ */
+function getAllinOneDiscoveryScript() {
+    return "(()=>{" +
+        "var st=window.store&&window.store.state&&window.store.state.site;" +
+        "if(!st){console.log('ERROR: No store found. Run this on liveschoolapp.com.');return}" +
+        "var out={};" +
+        "if(st.site)out.schoolId=st.site.id||st.site.school_id||null;" +
+        "var rosters=st.rosters;" +
+        "if(rosters&&typeof rosters==='object'){" +
+        "var ra=Array.isArray(rosters)?rosters:Object.values(rosters);" +
+        "out.rosters=ra.filter(r=>r.id).map(r=>({id:r.id,name:r.name||''}))" +
+        "}" +
+        "var locs=st.locations;" +
+        "if(locs&&typeof locs==='object'){" +
+        "var la=Array.isArray(locs)?locs:Object.values(locs);" +
+        "out.locations=la.filter(l=>l.id).map(l=>({id:l.id,name:l.name||''}))" +
+        "}" +
+        "var beh=st.behaviors;" +
+        "if(beh&&typeof beh==='object'){" +
+        "var ba=Array.isArray(beh)?beh:Object.values(beh);" +
+        "out.behaviors=ba.filter(b=>b.id&&!b.hidden).map(b=>({id:String(b.id),name:(b.name||'').trim(),type:b.type==='negative'?'demerit':'merit'}))" +
+        "}" +
+        "var rew=st.rewards;" +
+        "if(rew&&typeof rew==='object'){" +
+        "var rwa=Array.isArray(rew)?rew:Object.values(rew);" +
+        "out.rewards=rwa.filter(r=>r.id&&!r.archived).map(r=>({id:r.id,name:(r.name||'').trim(),value:r.value}))" +
+        "}" +
+        "var auth=st.auth;" +
+        "if(auth&&auth.user_id)out.userId=auth.user_id;" +
+        "console.log(JSON.stringify(out));" +
+        "console.log('=== Copy the line above and paste into the Points Tool ===')" +
+        "})()";
+}
+
+/**
  * Merge Students Mode
  */
 const MergeApp = {
@@ -3430,43 +3688,7 @@ const MergeApp = {
     updateAllinOneScript: function() {
         const codeEl = document.getElementById('merge-allinone-script-code');
         if (!codeEl) return;
-
-        codeEl.textContent = "(()=>{" +
-            "var st=window.store&&window.store.state&&window.store.state.site;" +
-            "if(!st){console.log('ERROR: No store found. Run this on liveschoolapp.com.');return}" +
-            "var out={};" +
-            // Site / School ID
-            "if(st.site)out.schoolId=st.site.id||st.site.school_id||null;" +
-            // Rosters
-            "var rosters=st.rosters;" +
-            "if(rosters&&typeof rosters==='object'){" +
-            "var ra=Array.isArray(rosters)?rosters:Object.values(rosters);" +
-            "out.rosters=ra.filter(r=>r.id).map(r=>({id:r.id,name:r.name||''}))" +
-            "}" +
-            // Locations
-            "var locs=st.locations;" +
-            "if(locs&&typeof locs==='object'){" +
-            "var la=Array.isArray(locs)?locs:Object.values(locs);" +
-            "out.locations=la.filter(l=>l.id).map(l=>({id:l.id,name:l.name||''}))" +
-            "}" +
-            // Behaviors
-            "var beh=st.behaviors;" +
-            "if(beh&&typeof beh==='object'){" +
-            "var ba=Array.isArray(beh)?beh:Object.values(beh);" +
-            "out.behaviors=ba.filter(b=>b.id&&!b.hidden).map(b=>({id:String(b.id),name:(b.name||'').trim(),type:b.type==='negative'?'demerit':'merit'}))" +
-            "}" +
-            // Rewards / Incentives
-            "var rew=st.rewards;" +
-            "if(rew&&typeof rew==='object'){" +
-            "var rwa=Array.isArray(rew)?rew:Object.values(rew);" +
-            "out.rewards=rwa.filter(r=>r.id&&!r.archived).map(r=>({id:r.id,name:(r.name||'').trim(),value:r.value}))" +
-            "}" +
-            // Users (for User ID — auth.user_id is the user, auth.id is the school)
-            "var auth=st.auth;" +
-            "if(auth&&auth.user_id)out.userId=auth.user_id;" +
-            "console.log(JSON.stringify(out));" +
-            "console.log('=== Copy the line above and paste into the Points Tool ===')" +
-            "})()";
+        codeEl.textContent = getAllinOneDiscoveryScript();
     },
 
     importAllinoneDiscovery: function() {
@@ -4571,7 +4793,7 @@ const Onboarding = {
     checkFirstVisit: function() {
         const hasVisited = localStorage.getItem('liveschool-points-visited');
         const lastVersion = localStorage.getItem('liveschool-points-version');
-        const currentVersion = '2.8.0';
+        const currentVersion = '2.9.0';
 
         if (!hasVisited) {
             // First visit - show welcome
