@@ -3586,6 +3586,13 @@ const MergeApp = {
                     ).join('');
                 }
                 if (listEl) listEl.classList.remove('hidden');
+
+                // Show "already loaded" banner and collapse manual import
+                const alreadyEl = document.getElementById('merge-behaviors-already-loaded');
+                const manualEl = document.getElementById('merge-behaviors-manual');
+                if (alreadyEl) alreadyEl.classList.remove('hidden');
+                if (manualEl) manualEl.removeAttribute('open');
+
                 messages.push('Behaviors: ' + this.behaviorMap.length + ' imported');
             }
 

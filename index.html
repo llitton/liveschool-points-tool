@@ -1118,10 +1118,15 @@
                 <span class="lock-icon" title="Upload points log to unlock">🔒</span>
             </div>
             <div class="step-content">
-                <p class="step-description">Paste the behavior JSON from the LiveSchool API to map behavior names to IDs.</p>
-                <p class="hint">In the browser console while logged into LiveSchool, run: <code id="merge-behavior-fetch-script">fetch('https://api.liveschoolapp.com/v2/schools/{schoolId}/behaviors', {credentials:'include'}).then(r=>r.json()).then(d=>console.log(JSON.stringify(d)))</code></p>
-                <textarea id="merge-behavior-json" placeholder='Paste the JSON response from /v2/schools/{schoolId}/behaviors here...' rows="4"></textarea>
-                <button id="merge-import-behaviors" class="btn primary">Import Behaviors</button>
+                <div id="merge-behaviors-already-loaded" class="hidden">
+                    <p class="step-description discovery-result success">Behaviors already imported via discovery script. You can skip this step.</p>
+                </div>
+                <details id="merge-behaviors-manual" open>
+                    <summary class="step-description">Paste the behavior JSON from the LiveSchool API to map behavior names to IDs.</summary>
+                    <p class="hint">In the browser console while logged into LiveSchool, run: <code id="merge-behavior-fetch-script">fetch('https://api.liveschoolapp.com/v2/schools/{schoolId}/behaviors', {credentials:'include'}).then(r=>r.json()).then(d=>console.log(JSON.stringify(d)))</code></p>
+                    <textarea id="merge-behavior-json" placeholder='Paste the JSON response from /v2/schools/{schoolId}/behaviors here...' rows="4"></textarea>
+                    <button id="merge-import-behaviors" class="btn primary">Import Behaviors</button>
+                </details>
                 <div id="merge-behavior-list" class="hidden">
                     <h4>Imported Behaviors (<span id="merge-behavior-count">0</span>)</h4>
                     <div id="merge-behavior-items"></div>
