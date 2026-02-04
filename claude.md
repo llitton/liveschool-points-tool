@@ -679,6 +679,8 @@ First-visit and version tracking uses localStorage keys:
 - Assign Points: discovered behaviors appear as datalist suggestions in behavior ID fields
 - Demo Data Generator: discovered behaviors are automatically imported into the behavior list
 - Config fields auto-fill from discovery output in all modes
+- **Improved: Merge Students** - Step 4 (Behavior Map) shows "already imported" banner when behaviors come from the discovery script, with manual import collapsed
+- **Refactored** - Extracted shared utilities: `escapeHtml()`, `copyToClipboard()`, `setupDropzone()`, `initAllinOneScript()` deduplicated across all 4 modules (~184 lines removed)
 
 ### v2.8.0 (February 2026)
 - **Improved: Merge Students** - Name-based fallback for Points Log filtering
